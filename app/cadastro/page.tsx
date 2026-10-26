@@ -1,229 +1,298 @@
-
 "use client";
 
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
-  createUserWithEmailAndPassword,
-  updateProfile,
+createUserWithEmailAndPassword,
+updateProfile,
+sendEmailVerification,
+signOut,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 function formatarCPF(valor: string) {
-  return valor
-    .replace(/\D/g, "")
-    .slice(0, 11)
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+return valor
+.replace(/\D/g, "")
+.slice(0, 11)
+.replace(/(\d{3})(\d)/, "$1.$2")
+.replace(/(\d{3})(\d)/, "$1.$2")
+.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 }
 
 function validarCPF(cpf: string) {
-  const numero = cpf.replace(/\D/g, "");
+const numero = cpf.replace(/\D/g, "");
 
-  if (numero.length !== 11 || /^(\d)\1{10}$/.test(numero)) {
-    return false;
-  }
+if (numero.length !== 11 || /^(\d)\1{10}$/.test(numero)) {
+return false;
+}
 
-  let soma = 0;
+let soma = 0;
 
-  for (let i = 0; i < 9; i++) {
-    soma += Number(numero[i]) * (10 - i);
-  }
+for (let i = 0; i < 9; i++) {
+soma += Number(numero[i]) * (10 - i);
+}
 
-  let resto = (soma * 10) % 11;
-  if (resto === 10) resto = 0;
+let resto = (soma * 10) % 11;
+if (resto === 10) resto = 0;
 
-  if (resto !== Number(numero[9])) return false;
+if (resto !== Number(numero[9])) return false;
 
-  soma = 0;
+soma = 0;
 
-  for (let i = 0; i < 10; i++) {
-    soma += Number(numero[i]) * (11 - i);
-  }
+for (let i = 0; i < 10; i++) {
+soma += Number(numero[i]) * (11 - i);
+}
 
-  resto = (soma * 10) % 11;
-  if (resto === 10) resto = 0;
+resto = (soma * 10) % 11;
+if (resto === 10) resto = 0;
 
-  return resto === Number(numero[10]);
+return resto === Number(numero[10]);
 }
 
 export default function CadastroPage() {
-  const router = useRouter();
+const [nome, setNome] = useState("");
+const [cpf, setCpf] = useState("");
+const [email, setEmail] = useState("");
+const [senha, setSenha] = useState("");
+const [confirmarSenha, setConfirmarSenha] = useState("");
+const [mostrarSenha, setMostrarSenha] = useState(false);
+const [carregando, setCarregando] = useState(false);
+const [erro, setErro] = useState("");
+const [emailEnviado, setEmailEnviado] = useState(false);
 
-  const [nome, setNome] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
+async function handleCadastro(event: FormEvent<HTMLFormElement>) {
+event.preventDefault();
+setErro("");
 
-  async function handleCadastro(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setErro("");
+if (!nome.trim()) {
+  setErro("Digite seu nome completo.");
+  return;
+}
 
-    if (!nome.trim()) {
-      setErro("Digite seu nome completo.");
-      return;
-    }
+if (!validarCPF(cpf)) {
+  setErro("Informe um CPF válido.");
+  return;
+}
 
-    if (!validarCPF(cpf)) {
-      setErro("Informe um CPF válido.");
-      return;
-    }
+if (!email.trim()) {
+  setErro("Digite seu e-mail.");
+  return;
+}
 
-    if (senha.length < 6) {
-      setErro("A senha deve ter pelo menos 6 caracteres.");
-      return;
-    }
+if (senha.length < 6) {
+  setErro("A senha deve ter pelo menos 6 caracteres.");
+  return;
+}
 
-    if (senha !== confirmarSenha) {
-      setErro("As senhas não coincidem.");
-      return;
-    }
+if (senha !== confirmarSenha) {
+  setErro("As senhas não coincidem.");
+  return;
+}
 
-    setCarregando(true);
+setCarregando(true);
 
-    try {
-      const credencial = await createUserWithEmailAndPassword(
-        auth,
-        email.trim(),
-        senha
-      );
+try {
+  const emailLimpo = email.trim();
 
-      await updateProfile(credencial.user, {
-        displayName: nome.trim(),
-      });
+  const credencial = await createUserWithEmailAndPassword(
+    auth,
+    emailLimpo,
+    senha
+  );
 
-      await setDoc(doc(db, "usuarios", credencial.user.uid), {
-        uid: credencial.user.uid,
-        nome: nome.trim(),
-        cpf: cpf.replace(/\D/g, ""),
-        email: email.trim(),
-        criadoEm: new Date().toISOString(),
-      });
+  await updateProfile(credencial.user, {
+    displayName: nome.trim(),
+  });
 
-      router.push("/dashboard");
-    } catch (error: unknown) {
-      console.error("Erro ao realizar cadastro:", error);
+  await setDoc(doc(db, "usuarios", credencial.user.uid), {
+    uid: credencial.user.uid,
+    nome: nome.trim(),
+    cpf: cpf.replace(/\D/g, ""),
+    email: emailLimpo,
+    emailVerificado: false,
+    criadoEm: new Date().toISOString(),
+  });
 
-      const codigo =
-        typeof error === "object" &&
-          error !== null &&
-          "code" in error
-          ? String(error.code)
-          : "";
+  await sendEmailVerification(credencial.user);
 
-      if (codigo === "auth/email-already-in-use") {
-        setErro("Este e-mail já está cadastrado.");
-      } else if (codigo === "auth/invalid-email") {
-        setErro("Digite um endereço de e-mail válido.");
-      } else if (codigo === "auth/weak-password") {
-        setErro("Escolha uma senha mais segura.");
-      } else if (codigo === "auth/operation-not-allowed") {
-        setErro(
-          "Ative o acesso por e-mail e senha nas configurações do Firebase."
-        );
-      } else if (codigo === "permission-denied") {
-        setErro(
-          "Não foi possível salvar os dados. Verifique as regras do Firestore."
-        );
-      } else {
-        setErro(
-          "Não foi possível concluir o cadastro. Confira os dados e tente novamente."
-        );
-      }
-    } finally {
-      setCarregando(false);
-    }
+  await signOut(auth);
+
+  setEmailEnviado(true);
+} catch (error: unknown) {
+  console.error("Erro ao realizar cadastro:", error);
+
+  const codigo =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error
+      ? String(error.code)
+      : "";
+
+  if (codigo === "auth/email-already-in-use") {
+    setErro("Este e-mail já está cadastrado.");
+  } else if (codigo === "auth/invalid-email") {
+    setErro("Digite um endereço de e-mail válido.");
+  } else if (codigo === "auth/weak-password") {
+    setErro("Escolha uma senha mais segura.");
+  } else if (codigo === "auth/operation-not-allowed") {
+    setErro(
+      "Ative o acesso por e-mail e senha nas configurações do Firebase."
+    );
+  } else if (
+    codigo === "permission-denied" ||
+    codigo === "firestore/permission-denied"
+  ) {
+    setErro(
+      "Não foi possível salvar os dados. Verifique as regras do Firestore."
+    );
+  } else if (codigo === "auth/too-many-requests") {
+    setErro(
+      "Muitas tentativas foram realizadas. Aguarde um pouco e tente novamente."
+    );
+  } else {
+    setErro(
+      "Não foi possível concluir o cadastro. Confira os dados e tente novamente."
+    );
   }
+} finally {
+  setCarregando(false);
+}
 
-  return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#DCEBF4] px-4 py-8 sm:px-8">
-      {/* FUNDO DA PÁGINA */}
-      <div className="absolute inset-0">
+}
+
+return ( <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#DCEBF4] px-4 py-8 sm:px-8">
+
+{/* FUNDO DA PÁGINA */} <div className="absolute inset-0"> <Image
+       src="/imagens/blumenau-fundo.png"
+       alt=""
+       fill
+       priority
+       sizes="100vw"
+       className="object-cover"
+     /> <div className="absolute inset-0 bg-[#EAF4FA]/40 backdrop-blur-[2px]" /> </div>
+
+
+  {/* VOLTAR PARA O INÍCIO */}
+  <Link
+    href="/"
+    className="absolute left-5 top-5 z-20 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-[#007DB8] shadow-md transition hover:bg-[#0A5C83] sm:left-8 sm:top-8"
+  >
+    <span aria-hidden="true">←</span>
+    Voltar para o início
+  </Link>
+
+  {/* CARTÃO PRINCIPAL */}
+  <div className="relative z-10 my-14 grid w-full max-w-[1090px] overflow-hidden rounded-[24px] bg-white shadow-2xl shadow-[#003B5C]/20 lg:my-8 lg:min-h-[720px] lg:grid-cols-[0.95fr_1.05fr]">
+    {/* PAINEL AZUL */}
+    <section className="relative flex flex-col bg-gradient-to-br from-[#0A5C83] via-[#0A5C83] to-[#0A5C83] px-6 py-8 text-white sm:px-10 sm:py-10 lg:px-11 lg:py-8">
+      {/* LOGO CENTRALIZADA */}
+      <Link href="/" className="mb-7 flex w-full justify-center">
         <Image
-          src="/imagens/blumenau-fundo.png"
-          alt=""
-          fill
+          src="/imagens/logo-saude-vale-mais-1.png"
+          alt="Logo Saúde Vale+"
+          width={220}
+          height={90}
           priority
-          sizes="100vw"
-          className="object-cover"
+          className="h-auto w-44 object-contain sm:w-48"
         />
-        <div className="absolute inset-0 bg-[#EAF4FA]/40 backdrop-blur-[2px]" />
-      </div>
-
-      {/* VOLTAR PARA O INÍCIO */}
-      <Link
-        href="/"
-        className="absolute left-5 top-5 z-20 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-[#007DB8] shadow-md transition hover:bg-[#0A5C83] sm:left-8 sm:top-8"
-      >
-        <span aria-hidden="true">←</span>
-        Voltar para o início
       </Link>
 
-      {/* CARTÃO PRINCIPAL */}
-      <div className="relative z-10 my-14 grid w-full max-w-[1090px] overflow-hidden rounded-[24px] bg-white shadow-2xl shadow-[#003B5C]/20 lg:my-8 lg:min-h-[720px] lg:grid-cols-[0.95fr_1.05fr]">
-        {/* PAINEL AZUL */}
-        <section className="relative flex flex-col bg-gradient-to-br from-[#0A5C83] via-[#0A5C83] to-[#0A5C83] px-6 py-8 text-white sm:px-10 sm:py-10 lg:px-11 lg:py-8">
+      {/* TEXTOS ACIMA DA FOTO */}
+      <div className="mb-5">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8ED3F5]">
+          Saúde Vale+
+        </p>
 
-          {/* LOGO CENTRALIZADA */}
-          <Link
-            href="/"
-            className="mb-7 flex w-full justify-center"
+        <h1 className="max-w-md text-[30px] font-bold leading-[1.15] tracking-tight sm:text-[35px]">
+          Cuidar de você é o que nos move.
+        </h1>
+
+        <p className="mt-3 max-w-md text-[15px] leading-6 text-white/95 sm:text-base">
+          Mais facilidade para acessar os serviços de saúde e mais
+          tranquilidade para cuidar de quem você ama.
+        </p>
+      </div>
+
+      {/* FOTO */}
+      <div className="relative mt-1 h-[230px] w-full overflow-hidden rounded-2xl shadow-lg sm:h-[300px] lg:h-[330px]">
+        <Image
+          src="/imagens/blumenau-fundo.png"
+          alt="Paisagem de Blumenau e sua comunidade"
+          fill
+          priority
+          sizes="(max-width: 1024px) 100vw, 45vw"
+          className="object-cover"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-[#003B5C]/25 via-transparent to-transparent" />
+      </div>
+
+      <p className="mt-6 text-xs text-white/75">
+        Projeto acadêmico Saúde Vale+
+      </p>
+    </section>
+
+    {/* FORMULÁRIO BRANCO */}
+    <section className="flex items-center justify-center bg-white px-6 py-9 sm:px-10 sm:py-10 lg:px-12 lg:py-8">
+      <div className="w-full max-w-[455px]">
+        {emailEnviado ? (
+          /* MENSAGEM DE CONFIRMAÇÃO */
+          <div
+            role="status"
+            className="rounded-2xl border border-[#8ED3F5] bg-[#F5F7FA] p-6 sm:p-8"
           >
-            <Image
-              src="/imagens/logo-saude-vale-mais-1.png"
-              alt="Logo Saúde Vale+"
-              width={220}
-              height={90}
-              priority
-              className="h-auto w-44 object-contain sm:w-48"
-            />
-          </Link>
-          {/* TEXTOS ACIMA DA FOTO */}
-          <div className="mb-5">
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8ED3F5]">
-              Saúde Vale+
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#DDF3FC] text-2xl text-[#005F8F]">
+              ✉
+            </div>
+
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.2em] text-[#007DB8]">
+              Cadastro realizado
             </p>
 
-            <h1 className="max-w-md text-[30px] font-bold leading-[1.15] tracking-tight sm:text-[35px]">
-              Cuidar de você é o que nos move.
-            </h1>
+            <h2 className="text-[28px] font-bold leading-tight tracking-tight text-[#073B60]">
+              Confirme seu e-mail
+            </h2>
 
-            <p className="mt-3 max-w-md text-[15px] leading-6 text-white/95 sm:text-base">
-              Mais facilidade para acessar os serviços de saúde e mais
-              tranquilidade para cuidar de quem você ama.
+            <p className="mt-4 text-sm leading-6 text-[#52677F]">
+              Enviamos um link de confirmação para:
             </p>
+
+            <p className="mt-2 break-all font-bold text-[#005F8F]">
+              {email.trim()}
+            </p>
+
+            <p className="mt-4 text-sm leading-6 text-[#52677F]">
+              Abra sua caixa de entrada e clique no link enviado pelo
+              Firebase. Depois, volte para entrar na sua conta.
+            </p>
+
+            <p className="mt-3 text-sm leading-6 text-[#52677F]">
+              Não encontrou a mensagem? Confira também as pastas de spam
+              ou lixo eletrônico.
+            </p>
+
+            <Link
+              href="/login"
+              className="mt-6 flex h-12 w-full items-center justify-center rounded-md bg-[#007DB8] px-4 text-sm font-bold text-white transition hover:bg-[#005F8F]"
+            >
+              Ir para o login
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmailEnviado(false);
+                setErro("");
+              }}
+              className="mt-4 w-full text-sm font-semibold text-[#007DB8] hover:underline"
+            >
+              Voltar ao cadastro
+            </button>
           </div>
-
-          {/* FOTO ABAIXO DOS TEXTOS */}
-          <div className="relative mt-1 h-[230px] w-full overflow-hidden rounded-2xl shadow-lg sm:h-[300px] lg:h-[330px]">
-            <Image
-              src="/imagens/blumenau-fundo.png"
-              alt="Paisagem de Blumenau e sua comunidade"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 45vw"
-              className="object-cover"
-            />
-
-            <div className="absolute inset-0 bg-gradient-to-t from-[#003B5C]/25 via-transparent to-transparent" />
-          </div>
-
-          <p className="mt-6 text-xs text-white/75">
-            Projeto acadêmico Saúde Vale+
-          </p>
-        </section>
-
-        {/* FORMULÁRIO BRANCO */}
-        <section className="flex items-center justify-center bg-white px-6 py-9 sm:px-10 sm:py-10 lg:px-12 lg:py-8">
-          <div className="w-full max-w-[455px]">
+        ) : (
+          <>
             <div className="mb-5">
               <p className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.2em] text-[#007DB8]">
                 Cadastro
@@ -281,7 +350,9 @@ export default function CadastroPage() {
                   autoComplete="off"
                   placeholder="000.000.000-00"
                   value={cpf}
-                  onChange={(event) => setCpf(formatarCPF(event.target.value))}
+                  onChange={(event) =>
+                    setCpf(formatarCPF(event.target.value))
+                  }
                   maxLength={14}
                   required
                   className="h-[43px] w-full rounded-md border border-[#D1DCE8] bg-white px-3.5 text-sm text-[#173F62] outline-none transition placeholder:text-[#8195B0] focus:border-[#007DB8] focus:ring-2 focus:ring-[#007DB8]/15"
@@ -420,10 +491,13 @@ export default function CadastroPage() {
                 apenas para as finalidades informadas ao cidadão.
               </p>
             </div>
-          </div>
-        </section>
+          </>
+        )}
       </div>
-    </main>
-  );
-}
+    </section>
+  </div>
+</main>
 
+
+);
+};
