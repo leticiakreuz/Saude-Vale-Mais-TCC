@@ -7,18 +7,17 @@ import {
 } from "firebase-admin/app";
 
 import { getAuth } from "firebase-admin/auth";
-
 import { getFirestore } from "firebase-admin/firestore";
 
 // Configurações privadas do Firebase Admin
 const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 
-const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(
-    /\\n/g,
-    "\n"
-);
+// Corrige a formatação da chave privada
+const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY
+    ?.trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\\n/g, "\n");
 
 // Inicializar Firebase Admin
 function inicializarFirebaseAdmin() {
@@ -32,7 +31,7 @@ function inicializarFirebaseAdmin() {
     // Verificar as variáveis de ambiente
     if (!projectId || !clientEmail || !privateKey) {
         throw new Error(
-            "As variáveis do Firebase Admin não foram configuradas no .env.local."
+            "As variáveis de ambiente do Firebase Admin não foram configuradas."
         );
     }
 
