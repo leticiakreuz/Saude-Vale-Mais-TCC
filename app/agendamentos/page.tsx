@@ -672,55 +672,126 @@ export default function AgendamentosPage() {
         setErro("");
     };
 
+
     // ----------------------------------------------------------
     // DISPONIBILIDADE COMPARTILHADA DA UBS
     // ----------------------------------------------------------
 
     useEffect(() => {
+        // Não apagar o horário quando avançar para o resumo.
+        if (etapa !== "calendario") {
+            return;
+        }
+
         const id = ++consultaDisponibilidadeId.current;
+
         setHorariosOcupados([]);
         setHorarioSelecionado("");
         setFalhaDisponibilidade(false);
 
-        if (!usuario || !medico || !diaSelecionado || etapa !== "calendario") {
+        if (!usuario || !medico || !diaSelecionado) {
             setConsultandoHorarios(false);
             return;
         }
 
         const controller = new AbortController();
+
         setConsultandoHorarios(true);
 
         const carregar = async () => {
             try {
                 const token = await usuario.getIdToken();
-                const parametros = new URLSearchParams({ medico, dia: diaSelecionado });
-                const resposta = await fetch(`/api/agendamentos/disponibilidade?${parametros}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    cache: "no-store",
-                    signal: controller.signal,
+
+                const parametros = new URLSearchParams({
+                    medico,
+                    dia: diaSelecionado,
                 });
+
+                const resposta = await fetch(
+                    `/api/agendamentos/disponibilidade?${parametros}`,
+                    {
+                        method: "GET",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                        cache: "no-store",
+                        signal: controller.signal,
+                    }
+                );
+
+                if (!resposta.ok) {
+                    const dadosErro = await resposta.json().catch(() => null);
+
+                    throw new Error(
+                        dadosErro?.erro ||
+                        `Erro HTTP ${resposta.status} ao consultar horários.`
+                    );
+                }
+
                 const dados = await resposta.json();
-                if (!resposta.ok) throw new Error(dados.erro || "Erro ao consultar horários.");
-                if (id !== consultaDisponibilidadeId.current) return;
-                setHorariosOcupados(Array.isArray(dados.horariosOcupados) ? dados.horariosOcupados : []);
+
+                if (
+                    controller.signal.aborted ||
+                    id !== consultaDisponibilidadeId.current
+                ) {
+                    return;
+                }
+
+                const ocupados: string[] =
+                    Array.isArray(dados.horariosOcupados)
+                        ? dados.horariosOcupados.filter(
+                            (horario: unknown): horario is string =>
+                                typeof horario === "string"
+                        )
+                        : [];
+
+                setHorariosOcupados(ocupados);
+
+                // Impede manter selecionado um horário ocupado.
+                setHorarioSelecionado((anterior) =>
+                    ocupados.includes(anterior) ? "" : anterior
+                );
+
+                setFalhaDisponibilidade(false);
             } catch (erroConsulta) {
-                if (controller.signal.aborted || id !== consultaDisponibilidadeId.current) return;
-                console.error("Erro ao consultar disponibilidade:", erroConsulta);
+                if (
+                    controller.signal.aborted ||
+                    id !== consultaDisponibilidadeId.current
+                ) {
+                    return;
+                }
+
+                console.error(
+                    "Erro ao consultar disponibilidade:",
+                    erroConsulta
+                );
+
                 setFalhaDisponibilidade(true);
             } finally {
-                if (id === consultaDisponibilidadeId.current) setConsultandoHorarios(false);
+                if (
+                    !controller.signal.aborted &&
+                    id === consultaDisponibilidadeId.current
+                ) {
+                    setConsultandoHorarios(false);
+                }
             }
         };
+
         void carregar();
-        return () => controller.abort();
+
+        return () => {
+            controller.abort();
+        };
     }, [usuario, medico, diaSelecionado, etapa]);
 
+    // Verifica se o horário já está reservado.
     const horarioOcupado = (horario: string): boolean =>
         horariosOcupados.includes(horario);
 
-    // A API consulta a data selecionada. Não marcamos outras datas
-    // como livres sem confirmação do servidor.
+    // Os horários são consultados quando a data é selecionada.
+    // A disponibilidade de todos os dias ainda não é verificada.
     const diaTemHorario = (_dia: string): boolean => true;
+
 
     // ----------------------------------------------------------
     // CONFIRMAR AGENDAMENTO
