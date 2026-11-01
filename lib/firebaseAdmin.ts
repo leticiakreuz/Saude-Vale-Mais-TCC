@@ -13,15 +13,14 @@ import { getFirestore } from "firebase-admin/firestore";
 const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 
-// Corrige a formatação da chave privada
 const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY
     ?.trim()
     .replace(/^["']|["']$/g, "")
     .replace(/\\n/g, "\n");
 
-// Inicializar Firebase Admin
+// Inicializar o Firebase Admin
 function inicializarFirebaseAdmin() {
-    // Evita inicializar o Firebase várias vezes
+    // Evitar inicializações duplicadas
     const aplicativos = getApps();
 
     if (aplicativos.length > 0) {
