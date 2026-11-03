@@ -10,7 +10,6 @@ import {
   getDoc,
   getDocs,
   serverTimestamp,
-  setDoc,
   Timestamp,
 } from "firebase/firestore";
 import Icone, { type NomeIcone } from "@/componentes/publico/Icone";
@@ -268,7 +267,8 @@ function ConteudoPerfil() {
 
     try {
       setSalvando(true);
-      await setDoc(doc(db, "usuarios", usuario.uid), {
+      const token = await usuario.getIdToken();
+      const resposta = await fetch("/api/perfil", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify({
         ...dados,
         uid: usuario.uid,
         email: usuario.email ?? email,
@@ -278,10 +278,11 @@ function ConteudoPerfil() {
         ...(cep ? { cep } : {}),
         unidade: dados.unidade ?? dados.unidadeReferencia ?? "",
         unidadeReferencia: dados.unidadeReferencia ?? dados.unidade ?? "",
-        perfilAtualizadoEm: serverTimestamp(),
-      }, { merge: true });
+      }) });
+      const resultado = await resposta.json();
+      if (!resposta.ok) throw new Error(resultado.erro ?? "Não foi possível salvar o cadastro.");
       setPerfil((p) => normalizarPerfil({
-        ...p, ...dados,
+        ...p, ...dados, ...resultado.perfil,
         ...(cpf ? { cpf } : {}),
         ...(telefone ? { telefone: formatarTelefone(telefone) } : {}),
         ...(cns ? { numeroSUS: cns, cartaoSus: cns } : {}),
@@ -290,7 +291,7 @@ function ConteudoPerfil() {
       setMensagem("Dados atualizados com sucesso.");
     } catch (e) {
       console.error(e);
-      setErro("Não foi possível salvar os dados. Confira sua conexão e as regras do Firestore.");
+      setErro(e instanceof Error ? e.message : "Não foi possível salvar os dados.");
     } finally { setSalvando(false); }
   }
 
@@ -457,7 +458,7 @@ function ConteudoPerfil() {
                         <div className="sm:col-span-2">
                           <label htmlFor="ubs" className={estiloLabel}>Unidade de saúde de referência</label>
                           <input id="ubs" className={estiloInput} value={perfil.unidadeReferencia ?? perfil.unidade ?? ""} readOnly placeholder="Não identificada" />
-                          <p className="mt-2 text-sm text-slate-600">O CEP sozinho não determina a UBS responsável.</p>
+                          <p className="mt-2 text-sm text-slate-600">Ao salvar, a UBS é recalculada pela rua e pelo número na tabela territorial de Blumenau.</p>
                         </div>
                       </div>
                       {salvarBotao()}

@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-createUserWithEmailAndPassword,
-updateProfile,
+signInWithEmailAndPassword,
 sendEmailVerification,
 signOut,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
+import { validarCPF } from "@/lib/cadastro/validacao";
 
 function formatarCPF(valor: string) {
 return valor
@@ -19,36 +18,6 @@ return valor
 .replace(/(\d{3})(\d)/, "$1.$2")
 .replace(/(\d{3})(\d)/, "$1.$2")
 .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-}
-
-function validarCPF(cpf: string) {
-const numero = cpf.replace(/\D/g, "");
-
-if (numero.length !== 11 || /^(\d)\1{10}$/.test(numero)) {
-return false;
-}
-
-let soma = 0;
-
-for (let i = 0; i < 9; i++) {
-soma += Number(numero[i]) * (10 - i);
-}
-
-let resto = (soma * 10) % 11;
-if (resto === 10) resto = 0;
-
-if (resto !== Number(numero[9])) return false;
-
-soma = 0;
-
-for (let i = 0; i < 10; i++) {
-soma += Number(numero[i]) * (11 - i);
-}
-
-resto = (soma * 10) % 11;
-if (resto === 10) resto = 0;
-
-return resto === Number(numero[10]);
 }
 
 export default function CadastroPage() {
@@ -61,6 +30,9 @@ const [mostrarSenha, setMostrarSenha] = useState(false);
 const [carregando, setCarregando] = useState(false);
 const [erro, setErro] = useState("");
 const [emailEnviado, setEmailEnviado] = useState(false);
+const [confirmacaoEnviada, setConfirmacaoEnviada] = useState(false);
+const [pronto, setPronto] = useState(false);
+useEffect(() => setPronto(true), []);
 
 async function handleCadastro(event: FormEvent<HTMLFormElement>) {
 event.preventDefault();
@@ -96,66 +68,30 @@ setCarregando(true);
 try {
   const emailLimpo = email.trim();
 
-  const credencial = await createUserWithEmailAndPassword(
-    auth,
-    emailLimpo,
-    senha
-  );
-
-  await updateProfile(credencial.user, {
-    displayName: nome.trim(),
+  const resposta = await fetch("/api/cadastro", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome, cpf, email: emailLimpo, senha, confirmarSenha }),
   });
+  const retorno = await resposta.json();
+  if (!resposta.ok) throw new Error(retorno.erro ?? "Não foi possível criar sua conta.");
 
-  await setDoc(doc(db, "usuarios", credencial.user.uid), {
-    uid: credencial.user.uid,
-    nome: nome.trim(),
-    cpf: cpf.replace(/\D/g, ""),
-    email: emailLimpo,
-    emailVerificado: false,
-    criadoEm: new Date().toISOString(),
-  });
-
-  await sendEmailVerification(credencial.user);
-
-  await signOut(auth);
+  // A conta já está criada. Uma falha no envio do e-mail não repete o cadastro.
+  try {
+    const credencial = await signInWithEmailAndPassword(auth, emailLimpo, senha);
+    await sendEmailVerification(credencial.user);
+    setConfirmacaoEnviada(true);
+  } catch {
+    setConfirmacaoEnviada(false);
+  } finally {
+    await signOut(auth).catch(() => {});
+  }
+  setSenha("");
+  setConfirmarSenha("");
 
   setEmailEnviado(true);
 } catch (error: unknown) {
-  console.error("Erro ao realizar cadastro:", error);
-
-  const codigo =
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error
-      ? String(error.code)
-      : "";
-
-  if (codigo === "auth/email-already-in-use") {
-    setErro("Este e-mail já está cadastrado.");
-  } else if (codigo === "auth/invalid-email") {
-    setErro("Digite um endereço de e-mail válido.");
-  } else if (codigo === "auth/weak-password") {
-    setErro("Escolha uma senha mais segura.");
-  } else if (codigo === "auth/operation-not-allowed") {
-    setErro(
-      "Ative o acesso por e-mail e senha nas configurações do Firebase."
-    );
-  } else if (
-    codigo === "permission-denied" ||
-    codigo === "firestore/permission-denied"
-  ) {
-    setErro(
-      "Não foi possível salvar os dados. Verifique as regras do Firestore."
-    );
-  } else if (codigo === "auth/too-many-requests") {
-    setErro(
-      "Muitas tentativas foram realizadas. Aguarde um pouco e tente novamente."
-    );
-  } else {
-    setErro(
-      "Não foi possível concluir o cadastro. Confira os dados e tente novamente."
-    );
-  }
+  setErro(error instanceof Error ? error.message : "Não foi possível concluir o cadastro. Confira os dados e tente novamente.");
 } finally {
   setCarregando(false);
 }
@@ -186,21 +122,21 @@ return ( <main className="relative flex min-h-screen items-center justify-center
   {/* CARTÃO PRINCIPAL */}
   <div className="relative z-10 my-14 grid w-full max-w-[1090px] overflow-hidden rounded-[24px] bg-white shadow-2xl shadow-[#003B5C]/20 lg:my-8 lg:min-h-[720px] lg:grid-cols-[0.95fr_1.05fr]">
     {/* PAINEL AZUL */}
-    <section className="relative flex flex-col bg-gradient-to-br from-[#0A5C83] via-[#0A5C83] to-[#0A5C83] px-6 py-8 text-white sm:px-10 sm:py-10 lg:px-11 lg:py-8">
+    <section className="relative flex flex-col bg-gradient-to-br from-[#0A5C83] via-[#0A5C83] to-[#0A5C83] px-6 py-4 text-white sm:px-10 lg:px-11 lg:py-8">
       {/* LOGO CENTRALIZADA */}
-      <Link href="/" className="mb-7 flex w-full justify-center">
+      <Link href="/" className="flex w-full justify-center lg:mb-7">
         <Image
           src="/imagens/logo-saude-vale-mais-1.png"
           alt="Logo Saúde Vale+"
           width={220}
           height={90}
           priority
-          className="h-auto w-44 object-contain sm:w-48"
+          className="h-auto w-36 object-contain sm:w-40 lg:w-48"
         />
       </Link>
 
       {/* TEXTOS ACIMA DA FOTO */}
-      <div className="mb-5">
+      <div className="mb-5 hidden lg:block">
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8ED3F5]">
           Saúde Vale+
         </p>
@@ -216,7 +152,7 @@ return ( <main className="relative flex min-h-screen items-center justify-center
       </div>
 
       {/* FOTO */}
-      <div className="relative mt-1 h-[230px] w-full overflow-hidden rounded-2xl shadow-lg sm:h-[300px] lg:h-[330px]">
+      <div className="relative mt-1 hidden h-[330px] w-full overflow-hidden rounded-2xl shadow-lg lg:block">
         <Image
           src="/imagens/blumenau-fundo.png"
           alt="Paisagem de Blumenau e sua comunidade"
@@ -229,7 +165,7 @@ return ( <main className="relative flex min-h-screen items-center justify-center
         <div className="absolute inset-0 bg-gradient-to-t from-[#003B5C]/25 via-transparent to-transparent" />
       </div>
 
-      <p className="mt-6 text-xs text-white/75">
+      <p className="mt-6 hidden text-xs text-white/75 lg:block">
         Projeto acadêmico Saúde Vale+
       </p>
     </section>
@@ -252,11 +188,11 @@ return ( <main className="relative flex min-h-screen items-center justify-center
             </p>
 
             <h2 className="text-[28px] font-bold leading-tight tracking-tight text-[#073B60]">
-              Confirme seu e-mail
+              {confirmacaoEnviada ? "Confirme seu e-mail" : "Conta criada"}
             </h2>
 
             <p className="mt-4 text-sm leading-6 text-[#52677F]">
-              Enviamos um link de confirmação para:
+              {confirmacaoEnviada ? "Enviamos um link de confirmação para:" : "Seu acesso foi criado com o e-mail:"}
             </p>
 
             <p className="mt-2 break-all font-bold text-[#005F8F]">
@@ -264,14 +200,13 @@ return ( <main className="relative flex min-h-screen items-center justify-center
             </p>
 
             <p className="mt-4 text-sm leading-6 text-[#52677F]">
-              Abra sua caixa de entrada e clique no link enviado pelo
-              Firebase. Depois, volte para entrar na sua conta.
+              {confirmacaoEnviada ? "Abra o link enviado ao seu e-mail. Depois, entre e complete seu perfil para acessar os serviços." : "Entre na sua conta e complete seu perfil para acessar os serviços."}
             </p>
 
-            <p className="mt-3 text-sm leading-6 text-[#52677F]">
+            {confirmacaoEnviada && <p className="mt-3 text-sm leading-6 text-[#52677F]">
               Não encontrou a mensagem? Confira também as pastas de spam
               ou lixo eletrônico.
-            </p>
+            </p>}
 
             <Link
               href="/login"
@@ -310,7 +245,8 @@ return ( <main className="relative flex min-h-screen items-center justify-center
               </p>
             </div>
 
-            <form onSubmit={handleCadastro} className="space-y-3.5">
+            <form method="post" onSubmit={handleCadastro} className="space-y-3.5">
+              <fieldset disabled={!pronto || carregando} className="space-y-3.5">
               {/* NOME COMPLETO */}
               <div>
                 <label
@@ -464,6 +400,7 @@ return ( <main className="relative flex min-h-screen items-center justify-center
               >
                 {carregando ? "Criando sua conta..." : "Criar conta"}
               </button>
+              </fieldset>
             </form>
 
             {/* LINK PARA ENTRAR */}

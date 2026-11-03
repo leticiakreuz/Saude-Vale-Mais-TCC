@@ -38,7 +38,7 @@ async function request(conta, caminho, dados, esperado = 200) {
 async function criar(nome, cargo) {
   const uid = prefixo + nome, email = "svqa-" + run + "-" + nome + "@example.invalid", password = randomBytes(24).toString("base64url") + "aA1!";
   await auth.createUser({ uid, email, password, displayName: "QA " + nome }); criados.push(uid);
-  const perfil = { uid, nome: "QA Paciente " + run + " " + nome, email, unidadeReferencia: unidade, unidade, demonstrativo: true };
+  const perfil = { uid, nome: "QA Paciente " + run + " " + nome, email, unidadeReferencia: unidade, unidade, demonstrativo: true, cadastroVersao: 2, cpf: "52998224725", telefone: "47999999999", dataNascimento: "1990-01-01", numeroSUS: "700000000000003", cep: "89010100", rua: "Rua XV de Novembro", numero: "100", bairro: "Centro", cidade: "Blumenau", uf: "SC", emailResponsavel: "" };
   await db.collection("usuarios").doc(uid).set(perfil);
   let nomeAgenda = "QA " + nome + " " + run;
   if (cargo) {
@@ -126,7 +126,9 @@ try {
     await assert.rejects(updateDoc(doc(vencedor.webDb, "usuarios", vencedor.uid, "agendamentos", consulta), { status: "concluido" }), e => e.code === "permission-denied");
     await assert.rejects(getDoc(doc(vencedor.webDb, "usuarios", segundo.uid)), e => e.code === "permission-denied");
     await assert.rejects(updateDoc(doc(vencedor.webDb, "usuarios", vencedor.uid), { cargo: "administracao" }), e => e.code === "permission-denied");
-    await updateDoc(doc(vencedor.webDb, "usuarios", vencedor.uid), { nome: "QA Paciente atualizado", gestanteAtual: false });
+    await assert.rejects(updateDoc(doc(vencedor.webDb, "usuarios", vencedor.uid), { nome: "" }), e => e.code === "permission-denied");
+    await assert.rejects(updateDoc(doc(vencedor.webDb, "usuarios", vencedor.uid), { unidadeReferencia: "UBS forjada", cadastroVersao: 2 }), e => e.code === "permission-denied");
+    await updateDoc(doc(vencedor.webDb, "usuarios", vencedor.uid), { gestanteAtual: false });
   });
   await teste("relatórios retornam apenas contagens da unidade", async () => {
     const r = await request(contas.administracao, "/api/profissional/relatorios?inicio=" + dia + "&fim=" + dia);

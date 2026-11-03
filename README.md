@@ -6,6 +6,8 @@ Inclui a área do paciente e cinco painéis profissionais protegidos por cargo e
 
 Veja o guia completo em [docs/CONTINUACAO-TCC.md](docs/CONTINUACAO-TCC.md), com arquivos alterados, configuração, comandos PowerShell, segurança, checklist e preparação para GitHub/Vercel.
 
+O cadastro inicial mantém nome, CPF, e-mail e senha. Após o login, o cidadão deve completar o perfil e o endereço em Blumenau antes de acessar os serviços. A vinculação territorial da UBS e suas limitações estão em [docs/CADASTRO-E-TERRITORIO.md](docs/CADASTRO-E-TERRITORIO.md).
+
 ## Executar
 
 Configure as variáveis de `.env.example` em `.env.local` e execute:

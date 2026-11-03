@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { cadastroCompleto } from "@/lib/cadastro/validacao";
 import {
     avaliarComprovante,
     type PerfilVacinal,
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
         }
 
         const dados = perfilDoc.data() ?? {};
+        if (!cadastroCompleto(dados)) return erro("Complete seu cadastro antes de emitir o comprovante.", 403);
 
         const perfil: PerfilVacinal = {
             nome: String(dados.nome ?? usuario.name ?? ""),

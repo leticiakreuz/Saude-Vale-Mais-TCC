@@ -1,30 +1,44 @@
 rules_version = '2';
+// usuarios/{uid}: dados pessoais e endereço completos são gravados pelas APIs Admin.
+// cadastroVersao (2), uid, e-mail e vínculo territorial são imutáveis pelo SDK cliente.
+// Somente os quatro campos autodeclarados de gestação abaixo podem ser atualizados pelo dono.
+// Subcoleções clínicas são privadas, sem escrita cliente e exigem cadastro validado.
 service cloud.firestore {
   match /databases/{database}/documents {
     function dono(uid) { return request.auth != null && request.auth.uid == uid; }
-    function camposPerfil() { return ['uid', 'nome', 'email', 'cpf', 'telefone', 'dataNascimento', 'numeroSUS', 'cartaoSus', 'dataEmissaoSUS', 'emailResponsavel', 'cep', 'rua', 'numero', 'bairro', 'cidade', 'uf', 'unidade', 'unidadeReferencia', 'acessibilidade', 'emailVerificado', 'criadoEm', 'perfilAtualizadoEm', 'gestanteAtual', 'jaFoiGestante', 'semanasGestacao', 'inicioGestacao']; }
+    function texto(d, campo, min, max) { return d.get(campo, null) is string && d[campo].size() >= min && d[campo].size() <= max; }
+    function perfilValido(d, uid) {
+      return d.get('cadastroVersao', 0) == 2 && d.get('uid', '') == uid
+        && texto(d, 'nome', 3, 120) && texto(d, 'email', 3, 160)
+        && texto(d, 'cpf', 11, 11) && d.cpf.matches('[0-9]{11}')
+        && texto(d, 'telefone', 10, 11) && d.telefone.matches('[0-9]{10,11}')
+        && texto(d, 'numeroSUS', 15, 15) && d.numeroSUS.matches('[0-9]{15}')
+        && texto(d, 'dataNascimento', 10, 10) && d.dataNascimento.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && texto(d, 'cep', 8, 8) && d.cep.matches('[0-9]{8}')
+        && texto(d, 'rua', 1, 160) && texto(d, 'numero', 1, 6) && texto(d, 'bairro', 1, 100)
+        && d.get('cidade', '') == 'Blumenau' && d.get('uf', '') == 'SC'
+        && texto(d, 'unidadeReferencia', 1, 160);
+    }
+    function validado(uid) { return perfilValido(get(/databases/$(database)/documents/usuarios/$(uid)).data, uid); }
+    function gestacaoValida(d) {
+      let semana = d.get('semanasGestacao', null);
+      let inicio = d.get('inicioGestacao', null);
+      return d.get('gestanteAtual', false) is bool && d.get('jaFoiGestante', false) is bool
+        && (semana == null || (semana is int && semana >= 0 && semana <= 43))
+        && (inicio == null || (inicio is string && inicio.size() <= 10 && inicio.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')));
+    }
     match /usuarios/{uid} {
       allow read: if dono(uid);
-      allow create: if dono(uid)
-        && request.resource.data.keys().hasOnly(camposPerfil())
-        && request.resource.data.uid == uid
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.get('unidadeReferencia', '') == ''
-        && request.resource.data.get('unidade', '') == '';
-      // O vínculo territorial é administrado no servidor. Campos de cargo nunca são aceitos.
+      allow create: if false;
       allow update: if dono(uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposPerfil())
-        && request.resource.data.get('uid', uid) == uid
-        && request.resource.data.get('email', request.auth.token.email) == request.auth.token.email
-        && (request.resource.data.get('unidadeReferencia', '') == resource.data.get('unidadeReferencia', '')
-          || (resource.data.get('unidadeReferencia', '') == '' && request.resource.data.get('unidadeReferencia', '') == resource.data.get('unidade', '')))
-        && (request.resource.data.get('unidade', '') == resource.data.get('unidade', '')
-          || (resource.data.get('unidade', '') == '' && request.resource.data.get('unidade', '') == resource.data.get('unidadeReferencia', '')));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['gestanteAtual', 'jaFoiGestante', 'semanasGestacao', 'inicioGestacao'])
+        && perfilValido(request.resource.data, uid)
+        && gestacaoValida(request.resource.data);
       allow delete: if false;
-      match /agendamentos/{id} { allow read: if dono(uid); allow write: if false; }
-      match /controleAgendamento/{id} { allow read: if dono(uid); allow write: if false; }
-      match /medicamentos/{id} { allow read: if dono(uid); allow write: if false; }
-      match /vacinacao/{id} { allow read: if dono(uid); allow write: if false; }
+      match /agendamentos/{id} { allow read: if dono(uid) && validado(uid); allow write: if false; }
+      match /controleAgendamento/{id} { allow read: if dono(uid) && validado(uid); allow write: if false; }
+      match /medicamentos/{id} { allow read: if dono(uid) && validado(uid); allow write: if false; }
+      match /vacinacao/{id} { allow read: if dono(uid) && validado(uid); allow write: if false; }
       match /reclamacoes/{id} {
         allow read: if dono(uid);
         allow create: if dono(uid)

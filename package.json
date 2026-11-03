@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/sistema.test.cjs",
+    "test": "node --test tests/sistema.test.cjs tests/cadastro.test.cjs",
     "typecheck": "tsc --noEmit",
     "build:webpack": "next build --webpack",
     "dev:webpack": "next dev --webpack",
