@@ -7,6 +7,7 @@ import { validarOferta } from "@/lib/profissionais/agendaRegras";
 import { auditoria } from "@/lib/profissionais/agendamentos";
 import { ErroAcesso } from "@/lib/profissionais/autorizacao";
 import { dataAgendavel } from "@/lib/profissionais/datas";
+import { cadastroCompleto } from "@/lib/cadastro/validacao";
 
 export const runtime = "nodejs";
 
@@ -178,6 +179,7 @@ export async function POST(request: NextRequest) {
             .doc(usuario.uid);
 
         const perfilSnapshot = await usuarioRef.get();
+        if (!cadastroCompleto(perfilSnapshot.data())) return respostaErro("Complete seu cadastro antes de agendar.", 403);
 
         if (!perfilSnapshot.exists) {
             return respostaErro(
@@ -232,6 +234,7 @@ export async function POST(request: NextRequest) {
         const resultado = await adminDb.runTransaction(
             async (transacao) => {
                 const perfilAtual = await transacao.get(usuarioRef);
+                if (!cadastroCompleto(perfilAtual.data())) throw new ErroAcesso("Complete seu cadastro antes de agendar.");
                 if (perfilAtual.data()?.unidadeReferencia !== unidade) throw new ErroAcesso("O vínculo com a UBS mudou. Atualize seu perfil antes de agendar.", 409);
                 const reservaSnapshot =
                     await transacao.get(reservaRef);

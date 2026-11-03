@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { configRef, grade, HORARIOS, vinculoRef } from "@/lib/profissionais/agendaRegras";
 import { dataAgendavel } from "@/lib/profissionais/datas";
+import { cadastroCompleto } from "@/lib/cadastro/validacao";
 
 export const runtime = "nodejs";
 
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
         }
 
         const unidade = perfilSnapshot.data()?.unidadeReferencia;
+        if (!cadastroCompleto(perfilSnapshot.data())) return NextResponse.json({ erro: "Complete seu cadastro antes de consultar os horários." }, { status: 403 });
 
         if (typeof unidade !== "string" || !unidade.trim()) {
             return NextResponse.json(

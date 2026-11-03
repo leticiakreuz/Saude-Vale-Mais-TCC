@@ -17,7 +17,7 @@ export default function EntradaConta({ profissional = false }: { profissional?: 
         const resposta = await fetch("/api/acesso", { method: "POST", headers: { Authorization: "Bearer " + token } });
         const dados = await resposta.json();
         if (!resposta.ok) throw new Error(dados.erro);
-        if (profissional && dados.destino === "/dashboard") throw new Error("Sua conta é de paciente. O acesso profissional deve ser autorizado pela administração da UBS.");
+        if (profissional && ["/dashboard", "/completar-cadastro"].includes(dados.destino)) throw new Error("Sua conta é de paciente. O acesso profissional deve ser autorizado pela administração da UBS.");
         if (ativo) router.replace(dados.destino);
       } catch (e) { if (ativo) { setErro(e instanceof Error ? e.message : "Não foi possível verificar seu acesso."); setAguardando(false); } }
     });

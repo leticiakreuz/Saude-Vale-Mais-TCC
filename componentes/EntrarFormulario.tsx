@@ -34,7 +34,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
       const resposta = await fetch("/api/acesso", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const acesso = await resposta.json();
       if (!resposta.ok) { setErro(acesso.erro ?? "Não foi possível verificar seu acesso."); return; }
-      if (profissional && acesso.destino === "/dashboard") { setErro("Sua conta é de cidadão. O acesso profissional precisa ser autorizado pela administração da UBS."); return; }
+      if (profissional && ["/dashboard", "/completar-cadastro"].includes(acesso.destino)) { setErro("Sua conta é de cidadão. O acesso profissional precisa ser autorizado pela administração da UBS."); return; }
       router.push(acesso.destino);
     } catch (error: unknown) {
       console.error("Erro ao entrar:", error);
