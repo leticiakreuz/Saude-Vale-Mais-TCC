@@ -1,296 +1,98 @@
-
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  getDocs,
-} from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-
-import Header from "../../componentes/Header";
-import Navigation from "../../componentes/Navigation";
-import Footer from "../../componentes/Footer";
+import Header from "@/componentes/Header";
+import Navigation from "@/componentes/Navigation";
+import Footer from "@/componentes/Footer";
+import Icone from "@/componentes/publico/Icone";
+import TelaSimples from "@/componentes/simples/TelaSimples";
+import useModoSimples from "@/lib/useModoSimples";
+import { formatarData } from "@/lib/profissionais/datas";
 import { auth, db } from "../firebase";
 
 type Medicamento = {
-  id: string;
-  nome?: string;
-  dosagem?: string;
-  quantidade?: string;
-  frequencia?: string;
-  proximaRetirada?: string;
-  status?: string;
-  observacao?: string;
+  id: string; nome: string; dosagem: string; quantidade: string; frequencia: string;
+  proximaRetirada: string; status: string; observacao: string; profissionalNome: string;
+  dataReceita: string; demonstrativo: boolean; unidadeRetirada: string;
 };
-
+const texto = (valor: unknown) => typeof valor === "string" ? valor : "";
+function disponibilidade(m: Medicamento) {
+  const status = m.status.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (status === "disponivel") return { rotulo: m.unidadeRetirada ? "Disponível na unidade" : "Disponível", simbolo: "✓", cor: "border-green-200 bg-green-50 text-green-900" };
+  if (status === "indisponivel") return { rotulo: "Indisponível no momento", simbolo: "×", cor: "border-red-200 bg-red-50 text-red-900" };
+  if (status === "aguardando reposicao") return { rotulo: "Aguardando reposição", simbolo: "◷", cor: "border-amber-200 bg-amber-50 text-amber-900" };
+  return { rotulo: "Disponibilidade não informada", simbolo: "?", cor: "border-slate-200 bg-slate-50 text-slate-700" };
+}
+function dataDoRegistro(valor: unknown): string {
+  if (typeof valor === "string") return valor.slice(0, 10);
+  if (valor && typeof valor === "object" && "toDate" in valor && typeof valor.toDate === "function") {
+    const data = valor.toDate() as Date;
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(data);
+  }
+  return "";
+}
 export default function MedicamentosPage() {
   const router = useRouter();
-
+  const simples = useModoSimples();
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
-
   useEffect(() => {
-    const cancelarObservador = onAuthStateChanged(
-      auth,
-      async (user) => {
-        if (!user) {
-          router.replace("/login");
-          return;
-        }
-
-        try {
-          const referencia = collection(
-            db,
-            "usuarios",
-            user.uid,
-            "medicamentos"
-          );
-
-          const resultado = await getDocs(referencia);
-
-          const registros = resultado.docs.map((item) => ({
-            id: item.id,
-            ...(item.data() as Omit<Medicamento, "id">),
-          }));
-
-          setMedicamentos(registros);
-        } catch {
-          setErro(
-            "Não foi possível carregar seus medicamentos."
-          );
-        } finally {
-          setCarregando(false);
-        }
-      }
-    );
-
-    return () => cancelarObservador();
+    let ativo = true, geracao = 0;
+    const cancelar = onAuthStateChanged(auth, async user => {
+      const atual = ++geracao;
+      setMedicamentos([]); setErro(""); setCarregando(true);
+      if (!user) { router.replace("/login"); return; }
+      try {
+        const documentos = await getDocs(collection(db, "usuarios", user.uid, "medicamentos"));
+        const lista = documentos.docs.map(documento => {
+          const d = documento.data();
+          return {
+            id: documento.id, nome: texto(d.nome), dosagem: texto(d.dosagem), quantidade: texto(d.quantidade),
+            frequencia: texto(d.frequencia), proximaRetirada: texto(d.proximaRetirada),
+            status: texto(d.status), observacao: texto(d.observacao), demonstrativo: d.demonstrativo === true,
+            unidadeRetirada: texto(d.unidadeRetirada) || texto(d.unidade) || texto(d.unidadeReferencia),
+            profissionalNome: texto(d.profissionalNome) || texto(d.medicoNome) || texto(d.nomeMedico) || texto(d.medico) || "Profissional não informado",
+            dataReceita: dataDoRegistro(d.dataReceita ?? d.dataPrescricao ?? d.criadoEm),
+          };
+        });
+        if (ativo && atual === geracao) setMedicamentos(lista);
+      } catch { if (ativo && atual === geracao) setErro("Não foi possível carregar seus medicamentos."); }
+      finally { if (ativo && atual === geracao) setCarregando(false); }
+    });
+    return () => { ativo = false; cancelar(); };
   }, [router]);
-
-  const formatarData = (data?: string) => {
-    if (!data) {
-      return "Não informada";
-    }
-
-    const partes = data.split("-");
-
-    if (partes.length !== 3) {
-      return data;
-    }
-
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  };
-
-  const medicamentosAtivos = medicamentos.filter(
-    (medicamento) =>
-      medicamento.status?.toLowerCase() !== "encerrado" &&
-      medicamento.status?.toLowerCase() !== "cancelado"
-  );
-
-  return (
-    <div className="min-h-screen bg-white">
-      <Header />
-      <Navigation />
-
-      <main>
-        <section className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-14">
-          <div className="mb-8">
-            <p className="font-[family-name:var(--font-inter)] text-sm font-bold uppercase tracking-wide text-[#007DB8]">
-              Medicamentos
-            </p>
-
-            <h1 className="mt-2 font-[family-name:var(--font-inter)] text-3xl font-extrabold tracking-tight text-[#005F8F] sm:text-4xl">
-              Meus medicamentos
-            </h1>
-
-            <p className="mt-2 max-w-3xl font-[family-name:var(--font-roboto)] text-base leading-7 text-[#111827]/65">
-              Consulte somente os medicamentos vinculados à sua prescrição.
-            </p>
-          </div>
-
-          {erro && (
-            <div
-              role="alert"
-              className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 font-[family-name:var(--font-roboto)] text-sm text-red-700"
-            >
-              {erro}
-            </div>
-          )}
-
-          {carregando ? (
-            <section className="rounded-3xl border border-[#D1D5DB] bg-[#F5F7FA] p-10 text-center">
-              <p className="font-[family-name:var(--font-roboto)] text-sm text-[#111827]/55">
-                Carregando seus medicamentos...
-              </p>
-            </section>
-          ) : medicamentosAtivos.length === 0 ? (
-            <section className="mx-auto max-w-3xl rounded-3xl border border-[#D1D5DB] bg-[#F5F7FA] p-10 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm">
-                💊
-              </div>
-
-              <h2 className="mt-5 font-[family-name:var(--font-inter)] text-2xl font-extrabold text-[#005F8F]">
-                Nenhum medicamento disponível
-              </h2>
-
-              <p className="mx-auto mt-2 max-w-xl font-[family-name:var(--font-roboto)] text-sm leading-6 text-[#111827]/60">
-                Não há medicamentos vinculados à sua conta no momento.
-              </p>
-            </section>
-          ) : (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <section className="rounded-3xl border border-[#D1D5DB] bg-white p-6 shadow-sm sm:p-8">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-[family-name:var(--font-inter)] text-sm font-bold uppercase tracking-wide text-[#007DB8]">
-                      Prescrição
-                    </p>
-
-                    <h2 className="mt-2 font-[family-name:var(--font-inter)] text-2xl font-extrabold text-[#111827]">
-                      Medicamentos vinculados
-                    </h2>
-                  </div>
-
-                  <span className="rounded-full bg-[#8ED3F5]/30 px-3 py-1 font-[family-name:var(--font-inter)] text-xs font-bold text-[#005F8F]">
-                    {medicamentosAtivos.length}{" "}
-                    {medicamentosAtivos.length === 1
-                      ? "medicamento"
-                      : "medicamentos"}
-                  </span>
-                </div>
-
-                <div className="mt-7 space-y-4">
-                  {medicamentosAtivos.map((medicamento) => (
-                    <article
-                      key={medicamento.id}
-                      className="rounded-3xl border border-[#D1D5DB] bg-white p-6 transition hover:border-[#8ED3F5]"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#22C55E]/10 text-2xl">
-                          💊
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-[family-name:var(--font-inter)] text-lg font-extrabold text-[#005F8F]">
-                            {medicamento.nome ||
-                              "Medicamento"}
-                          </h3>
-
-                          {medicamento.dosagem && (
-                            <p className="mt-1 font-[family-name:var(--font-roboto)] text-sm text-[#111827]/60">
-                              {medicamento.dosagem}
-                            </p>
-                          )}
-
-                          {medicamento.status && (
-                            <span className="mt-3 inline-flex rounded-full bg-green-50 px-3 py-1 font-[family-name:var(--font-inter)] text-xs font-bold text-[#16753E]">
-                              {medicamento.status}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                        {medicamento.quantidade && (
-                          <div className="rounded-xl bg-[#F5F7FA] p-4">
-                            <p className="font-[family-name:var(--font-roboto)] text-xs text-[#111827]/45">
-                              Quantidade
-                            </p>
-
-                            <p className="mt-1 font-[family-name:var(--font-inter)] text-sm font-bold text-[#111827]">
-                              {medicamento.quantidade}
-                            </p>
-                          </div>
-                        )}
-
-                        {medicamento.frequencia && (
-                          <div className="rounded-xl bg-[#F5F7FA] p-4">
-                            <p className="font-[family-name:var(--font-roboto)] text-xs text-[#111827]/45">
-                              Frequência
-                            </p>
-
-                            <p className="mt-1 font-[family-name:var(--font-inter)] text-sm font-bold text-[#111827]">
-                              {medicamento.frequencia}
-                            </p>
-                          </div>
-                        )}
-
-                        {medicamento.proximaRetirada && (
-                          <div className="rounded-xl bg-[#F5F7FA] p-4">
-                            <p className="font-[family-name:var(--font-roboto)] text-xs text-[#111827]/45">
-                              Próxima retirada
-                            </p>
-
-                            <p className="mt-1 font-[family-name:var(--font-inter)] text-sm font-bold text-[#111827]">
-                              {formatarData(
-                                medicamento.proximaRetirada
-                              )}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {medicamento.observacao && (
-                        <div className="mt-4 rounded-xl border border-[#D1D5DB] bg-[#F5F7FA] p-4">
-                          <p className="font-[family-name:var(--font-roboto)] text-xs leading-5 text-[#111827]/60">
-                            {medicamento.observacao}
-                          </p>
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              </section>
-
-              <aside className="h-fit space-y-6">
-                <section className="rounded-3xl bg-[#005F8F] p-6 text-white shadow-sm">
-                  <p className="font-[family-name:var(--font-inter)] text-sm font-bold uppercase tracking-wide text-[#8ED3F5]">
-                    Retirada
-                  </p>
-
-                  <h2 className="mt-2 font-[family-name:var(--font-inter)] text-2xl font-extrabold">
-                    Medicamentos da sua prescrição
-                  </h2>
-
-                  <p className="mt-3 font-[family-name:var(--font-roboto)] text-sm leading-6 text-white/70">
-                    Aqui aparecem somente os medicamentos vinculados ao seu
-                    cadastro.
-                  </p>
-                </section>
-
-                <section className="rounded-3xl border border-[#D1D5DB] bg-white p-6 shadow-sm">
-                  <p className="font-[family-name:var(--font-inter)] text-sm font-bold uppercase tracking-wide text-[#007DB8]">
-                    Unidade de saúde
-                  </p>
-
-                  <h2 className="mt-2 font-[family-name:var(--font-inter)] text-lg font-extrabold text-[#005F8F]">
-                    Retirada na unidade
-                  </h2>
-
-                  <p className="mt-3 font-[family-name:var(--font-roboto)] text-sm leading-6 text-[#111827]/60">
-                    A disponibilidade e as condições de retirada devem seguir
-                    as informações fornecidas pela unidade de saúde.
-                  </p>
-                </section>
-
-                <Link
-                  href="/dashboard"
-                  className="block rounded-2xl border border-[#D1D5DB] bg-[#F5F7FA] p-5 text-center font-[family-name:var(--font-inter)] text-sm font-bold text-[#005F8F] transition hover:border-[#007DB8] hover:bg-white"
-                >
-                  ← Voltar para minha área
-                </Link>
-              </aside>
-            </div>
-          )}
-        </section>
-      </main>
-
-      <Footer />
-    </div>
-  );
+  const lista = medicamentos.filter(m => !["encerrado", "cancelado"].includes(m.status.toLowerCase()));
+  const conteudo = <>
+    {erro && <p role="alert" className="mb-5 rounded-xl bg-red-50 p-4 text-red-800">{erro}</p>}
+    {carregando ? <p role="status" className="rounded-2xl bg-white p-7">Carregando…</p> : !lista.length ? <div className="rounded-2xl border border-slate-200 bg-white p-8"><Icone nome="medicamento" className="mb-4 h-12 w-12 text-[#007DB8]" /><p className="font-semibold text-slate-600">Nenhum medicamento nesta lista.</p></div> : <div className="space-y-5">{lista.map(m => <article key={m.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-start gap-4 border-b border-slate-100 px-5 py-5 sm:px-7">
+        <span className="rounded-2xl bg-sky-50 p-3 text-[#007DB8]"><Icone nome="medicamento" className="h-9 w-9" /></span>
+        <div className="min-w-0 flex-1"><h2 className="text-xl font-extrabold text-[#005F8F]">{m.nome || "Medicamento"}</h2>{m.dosagem && <p className="mt-1 text-base text-slate-600">{m.dosagem}</p>}</div>
+      </div>
+      <div className="px-5 py-5 sm:px-7">
+        <div className={"mb-6 flex items-start gap-3 rounded-xl border p-4 " + disponibilidade(m).cor}>
+          <span aria-hidden="true" className="text-2xl font-bold">{disponibilidade(m).simbolo}</span>
+          <div><p className="font-bold">{disponibilidade(m).rotulo}</p><p className="mt-1 text-sm">{m.unidadeRetirada || "Unidade de retirada não informada"}</p></div>
+        </div>
+        <div className="flex items-start gap-3"><Icone nome="pessoa" className="mt-1 h-6 w-6 shrink-0 text-[#007DB8]" /><div><p className="text-xs font-semibold text-slate-500">Receitado por</p><p className="mt-1 font-bold text-slate-800">{m.profissionalNome}</p></div></div>
+        <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
+          <div><dt className="text-sm text-slate-500">Quantidade</dt><dd className="mt-1 font-bold">{m.quantidade || "Não informada"}</dd></div>
+          <div><dt className="text-sm text-slate-500">Frequência</dt><dd className="mt-1 font-bold">{m.frequencia || "Não informada"}</dd></div>
+          <div><dt className="text-sm text-slate-500">Próxima retirada</dt><dd className="mt-1 font-bold text-[#005F8F]">{m.proximaRetirada ? formatarData(m.proximaRetirada) : "Não informada"}</dd></div>
+        </dl>
+        {m.dataReceita && <p className="mt-5 text-sm text-slate-500">Receita de {formatarData(m.dataReceita)}</p>}
+        {m.observacao && <p className="mt-4 border-l-2 border-[#8ED3F5] pl-3 text-sm leading-6 text-slate-600">{m.observacao}</p>}
+        {m.demonstrativo && <p className="mt-4 text-xs font-bold uppercase tracking-wide text-[#005F8F]">Registro demonstrativo · Sem validade de receita médica</p>}
+      </div>
+    </article>)}</div>}
+  </>;
+  if (simples) return <TelaSimples titulo="Remédios" icone="medicamento">{conteudo}</TelaSimples>;
+  return <div className="flex min-h-screen flex-col bg-[#F5F7FA]"><Header /><Navigation /><main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+    <div className="mb-7 flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-extrabold text-[#005F8F]">Meus medicamentos</h1><Link href="/dashboard" className="sv-button sv-button-outline">← Minha área</Link></div>
+    {conteudo}
+  </main><Footer /></div>;
 }
-

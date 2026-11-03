@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { auditoria } from "@/lib/profissionais/agendamentos";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
             if (!consultaSnap.exists) return "nao-encontrado";
             const consulta = consultaSnap.data()!;
             const status = String(consulta.status ?? "").trim().toLowerCase();
-            if (["cancelado", "concluido", "concluído", "finalizado"].includes(status)) return "finalizado";
+            if (!["agendado", "confirmado"].includes(status)) return "finalizado";
 
             const reservaId = consulta.reservaId;
             const reservaRef = typeof reservaId === "string" && /^[a-f0-9]{64}$/.test(reservaId)
@@ -51,11 +52,12 @@ export async function POST(request: NextRequest) {
             if (reservaRef && reservaSnap?.exists) {
                 tx.update(reservaRef, { status: "cancelado", atualizadoEm: FieldValue.serverTimestamp() });
             }
+            auditoria(tx, { uid: usuario.uid, unidadeReferencia: String(consulta.unidadeReferencia ?? "") }, "cancelamento-paciente", consultaRef.path, { status }, { status: "cancelado" });
             return "cancelado";
         });
 
         if (resultado === "nao-encontrado") return NextResponse.json({ erro: "Agendamento não encontrado." }, { status: 404 });
-        if (resultado === "finalizado") return NextResponse.json({ erro: "Agendamento já cancelado ou concluído." }, { status: 409 });
+        if (resultado === "finalizado") return NextResponse.json({ erro: "Esta consulta já foi cancelada, encerrada ou está em atendimento." }, { status: 409 });
         return NextResponse.json({ mensagem: "Agendamento cancelado." });
     } catch (erro) {
         console.error("Erro ao cancelar agendamento:", erro);

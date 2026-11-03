@@ -11,6 +11,8 @@ import {
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
+import useModoSimples from "@/lib/useModoSimples";
+import InicioSimples from "@/componentes/simples/InicioSimples";
 import Header from "../../componentes/Header";
 import Navigation from "../../componentes/Navigation";
 import Footer from "../../componentes/Footer";
@@ -192,6 +194,7 @@ function formatarData(dataString: string) {
 }
 
 export default function DashboardPage() {
+  const modoSimples = useModoSimples();
   const router = useRouter();
 
   const [nomeUsuario, setNomeUsuario] = useState("Usuário");
@@ -297,7 +300,7 @@ export default function DashboardPage() {
               (item) =>
                 item.dia >= hoje &&
                 item.dia.length > 0 &&
-                item.status.toLowerCase() !== "cancelado"
+                !["cancelado", "concluido", "concluído", "finalizado", "falta"].includes(item.status.toLowerCase())
             )
             .sort((a, b) => {
               const dataA = `${a.dia} ${a.horario}`;
@@ -338,7 +341,7 @@ export default function DashboardPage() {
     .join("")
     .toUpperCase();
 
-  const proximosAgendamentos = agendamentos.slice(0, 3);
+  if (modoSimples) return <InicioSimples />;
 
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
@@ -477,201 +480,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* PRÓXIMOS AGENDAMENTOS E PERFIL */}
-        <section className="mt-10 grid items-start gap-6 lg:mt-12 lg:grid-cols-[1.4fr_0.8fr]">
-          <div className="rounded-3xl border border-[#E1E6EB] bg-white p-5 shadow-sm sm:p-7">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-[family-name:var(--font-inter)] text-xs font-bold uppercase tracking-[0.14em] text-[#007DB8]">
-                  Organização
-                </p>
-
-                <h2 className="mt-2 font-[family-name:var(--font-inter)] text-xl font-extrabold text-[#111827] sm:text-2xl">
-                  Próximos agendamentos
-                </h2>
-
-                <p className="mt-2 font-[family-name:var(--font-roboto)] text-sm text-[#111827]/60">
-                  Acompanhe os seus próximos atendimentos.
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#E5F5FC] text-[#007DB8]">
-                <Icon name="clock" className="h-5 w-5" />
-              </div>
-            </div>
-
-            {carregandoAgendamentos ? (
-              <div className="mt-6 space-y-3" aria-label="Carregando agendamentos">
-                <div className="h-20 animate-pulse rounded-2xl bg-[#F5F7FA]" />
-                <div className="h-20 animate-pulse rounded-2xl bg-[#F5F7FA]" />
-              </div>
-            ) : erroAgendamentos ? (
-              <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p className="font-[family-name:var(--font-roboto)] text-sm leading-6 text-amber-900">
-                  Não foi possível carregar seus agendamentos agora.
-                  Acesse a página de agendamentos para tentar novamente.
-                </p>
-
-                <Link
-                  href="/agendamentos"
-                  className="mt-3 inline-flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm font-bold text-[#005F8F]"
-                >
-                  Ver agendamentos
-                  <Icon name="arrow" className="h-4 w-4" />
-                </Link>
-              </div>
-            ) : proximosAgendamentos.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-[#D1D5DB] bg-[#F9FBFC] px-5 py-8 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E5F5FC] text-[#007DB8]">
-                  <Icon name="calendar" className="h-6 w-6" />
-                </div>
-
-                <h3 className="mt-4 font-[family-name:var(--font-inter)] text-base font-bold text-[#111827]">
-                  Nenhuma consulta futura
-                </h3>
-
-                <p className="mx-auto mt-2 max-w-sm font-[family-name:var(--font-roboto)] text-sm leading-6 text-[#111827]/60">
-                  Quando você tiver um atendimento marcado, ele aparecerá
-                  aqui.
-                </p>
-
-                <Link
-                  href="/agendamentos"
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#007DB8] px-4 py-3 font-[family-name:var(--font-inter)] text-sm font-bold text-white transition hover:bg-[#005F8F]"
-                >
-                  Agendar consulta
-                  <Icon name="arrow" className="h-4 w-4" />
-                </Link>
-              </div>
-            ) : (
-              <div className="mt-6 space-y-3">
-                {proximosAgendamentos.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col gap-3 rounded-2xl border border-[#E8EDF1] p-4 transition hover:border-[#8ED3F5] sm:flex-row sm:items-center"
-                  >
-                    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-[#E5F5FC] text-[#005F8F]">
-                      <span className="font-[family-name:var(--font-inter)] text-lg font-extrabold leading-none">
-                        {item.dia.split("-")[2]}
-                      </span>
-                      <span className="mt-1 font-[family-name:var(--font-inter)] text-[10px] font-bold uppercase">
-                        {new Date(
-                          Number(item.dia.split("-")[0]),
-                          Number(item.dia.split("-")[1]) - 1,
-                          Number(item.dia.split("-")[2])
-                        ).toLocaleDateString("pt-BR", {
-                          month: "short",
-                        }).replace(".", "")}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="font-[family-name:var(--font-inter)] text-sm font-extrabold text-[#111827]">
-                        {item.servico}
-                      </p>
-
-                      <p className="mt-1 truncate font-[family-name:var(--font-roboto)] text-xs text-[#111827]/60">
-                        {item.medico}
-                      </p>
-
-                      <p className="mt-1 font-[family-name:var(--font-roboto)] text-xs text-[#111827]/60">
-                        {formatarData(item.dia)}
-                        {item.horario ? ` · ${item.horario}` : ""}
-                      </p>
-                    </div>
-
-                    <span className="w-fit rounded-full bg-[#E8F8EE] px-3 py-1 font-[family-name:var(--font-inter)] text-[11px] font-bold text-[#168447]">
-                      Agendado
-                    </span>
-                  </div>
-                ))}
-
-                <Link
-                  href="/agendamentos"
-                  className="inline-flex items-center gap-2 pt-2 font-[family-name:var(--font-inter)] text-sm font-bold text-[#007DB8] transition hover:text-[#005F8F]"
-                >
-                  Ver todos os agendamentos
-                  <Icon name="arrow" className="h-4 w-4" />
-                </Link>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-5">
-            {/* PERFIL */}
-            <div className="rounded-3xl border border-[#E1E6EB] bg-white p-6 shadow-sm sm:p-7">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#E5F5FC] font-[family-name:var(--font-inter)] text-lg font-extrabold text-[#005F8F]">
-                  {carregando ? "..." : iniciais}
-                </div>
-
-                <div className="min-w-0">
-                  <p className="font-[family-name:var(--font-inter)] text-xs font-semibold uppercase tracking-wide text-[#007DB8]">
-                    Minha conta
-                  </p>
-
-                  <h2 className="mt-1 truncate font-[family-name:var(--font-inter)] text-lg font-extrabold text-[#111827]">
-                    {carregando ? "Carregando..." : nomeUsuario}
-                  </h2>
-
-                  <p className="mt-1 font-[family-name:var(--font-roboto)] text-xs text-[#111827]/55">
-                    Área do paciente
-                  </p>
-                </div>
-              </div>
-
-              <div className="my-5 border-t border-[#EEF1F4]" />
-
-              <p className="font-[family-name:var(--font-roboto)] text-sm leading-6 text-[#111827]/65">
-                Mantenha suas informações pessoais atualizadas para facilitar
-                o acesso aos serviços.
-              </p>
-
-              <Link
-                href="/perfil"
-                className="mt-5 flex w-full items-center justify-between rounded-xl border border-[#D1D5DB] px-4 py-3 font-[family-name:var(--font-inter)] text-sm font-bold text-[#005F8F] transition hover:border-[#007DB8] hover:bg-[#F5FAFD]"
-              >
-                Acessar meu perfil
-                <Icon name="arrow" className="h-4 w-4" />
-              </Link>
-            </div>
-
-            {/* INFORMAÇÃO */}
-            <div className="overflow-hidden rounded-3xl bg-[#E5F5FC] p-6 sm:p-7">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#007DB8]">
-                <Icon name="hospital" className="h-6 w-6" />
-              </div>
-
-              <h2 className="mt-4 font-[family-name:var(--font-inter)] text-lg font-extrabold text-[#005F8F]">
-                Conheça seus direitos
-              </h2>
-
-              <p className="mt-2 font-[family-name:var(--font-roboto)] text-sm leading-6 text-[#005F8F]/80">
-                Consulte informações sobre o SUS e conheça os serviços
-                oferecidos pelo sistema público de saúde.
-              </p>
-
-              <Link
-                href="/sobre-sus"
-                className="mt-5 inline-flex items-center gap-2 font-[family-name:var(--font-inter)] text-sm font-extrabold text-[#005F8F] transition hover:text-[#007DB8]"
-              >
-                Saiba mais
-                <Icon name="arrow" className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* RODAPÉ DA ÁREA PRINCIPAL */}
-        <div className="mt-9 flex flex-col gap-2 border-t border-[#D1D5DB] pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-[family-name:var(--font-roboto)] text-xs text-[#111827]/50">
-            Saúde Vale+ · Saúde mais perto de você.
-          </p>
-
-          <p className="font-[family-name:var(--font-roboto)] text-xs text-[#111827]/50">
-            Em caso de emergência, procure um serviço de urgência.
-          </p>
-        </div>
       </main>
 
       <Footer />

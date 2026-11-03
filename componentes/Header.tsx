@@ -27,6 +27,7 @@ export default function Header() {
   const sair = async () => {
     try {
       setSaindo(true);
+      await fetch("/api/acesso", { method: "DELETE" });
       await signOut(auth);
       router.replace("/");
     } catch (error) {
@@ -39,7 +40,7 @@ export default function Header() {
 
   return (
     <header className="w-full bg-[#0A5C83]">
-      <div className="mx-auto flex min-h-[88px] max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:min-h-[100px] sm:px-8 lg:px-12">
+      <div className="mx-auto flex min-h-[88px] max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:min-h-[100px] sm:px-8 lg:px-12">
         {/* LOGO */}
         <Link
           href={usuario ? "/dashboard" : "/"}
@@ -58,6 +59,7 @@ export default function Header() {
 
         {/* AÇÕES DA CONTA */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <Link href="/perfil?secao=acessibilidade" className="rounded-lg px-2 py-3 text-xs font-bold text-white hover:bg-white/15 sm:text-sm">Configurações</Link>
           {!carregouAuth ? (
             <div className="h-10 w-20" aria-label="Carregando conta" />
           ) : usuario ? (

@@ -1,4 +1,119 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "agendamentos",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "unidadeReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "agendamentos",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "unidadeReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "medico",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "agendamentos",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "unidadeReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "usuarios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "unidadeReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nome",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "horariosReservados",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "unidadeReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "medico",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "escalas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "unidadeReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "escalas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "unidadeReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "profissionalId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dia",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

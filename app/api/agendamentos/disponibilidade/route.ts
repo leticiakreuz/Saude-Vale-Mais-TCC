@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { configRef, grade, HORARIOS, vinculoRef } from "@/lib/profissionais/agendaRegras";
+import { dataAgendavel } from "@/lib/profissionais/datas";
 
 export const runtime = "nodejs";
 
@@ -17,7 +19,7 @@ export async function GET(request: NextRequest) {
 
         const token = authorization.substring(7);
 
-        const usuario = await adminAuth.verifyIdToken(token);
+        const usuario = await adminAuth.verifyIdToken(token, true);
 
         // Receber os filtros enviados pelo calendário
         const { searchParams } = new URL(request.url);
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
         const medico = searchParams.get("medico");
         const dia = searchParams.get("dia");
 
-        if (!medico || !dia) {
+        if (!medico || medico.length > 120 || !dia || !dataAgendavel(dia)) {
             return NextResponse.json(
                 { erro: "Informe o médico e a data." },
                 { status: 400 }
@@ -70,9 +72,12 @@ export async function GET(request: NextRequest) {
             .map((documento) => documento.data().horario)
             .filter((horario): horario is string => typeof horario === "string");
 
-        return NextResponse.json({
-            horariosOcupados,
-        });
+        const [config, vinculo] = await Promise.all([configRef(unidade.trim(), medico, dia).get(), vinculoRef(unidade.trim(), medico).get()]);
+        const profissional = vinculo.exists ? await adminDb.collection("profissionais").doc(vinculo.data()!.uid).get() : null;
+        const inativo = profissional && (!profissional.exists || profissional.data()?.ativo !== true);
+        const oferta = grade(config.data(), medico, searchParams.get("servico") ?? undefined);
+        const horariosBloqueados = Object.values(HORARIOS).flat().filter(h => inativo || !oferta.some(v => v.horario === h && !v.bloqueado));
+        return NextResponse.json({ horariosOcupados, horariosBloqueados }, { headers: { "Cache-Control": "private, no-store" } });
     } catch (erro) {
         console.error("Erro ao consultar disponibilidade:", erro);
 

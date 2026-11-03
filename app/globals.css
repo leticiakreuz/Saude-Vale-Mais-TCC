@@ -9,6 +9,34 @@ body {
   min-height: 100%;
 }
 
+/* Classes próprias preservam os estilos da área do paciente. */
+:root { --font-inter: Inter, Arial, sans-serif; --font-roboto: Roboto, Arial, sans-serif; }
+.sv-public, .sv-profissional { font-family: var(--font-inter); color: #111827; }
+.sv-public { display: flex; min-height: 100dvh; flex-direction: column; }
+.sv-public > main { flex: 1; }
+.sv-container { width: min(100% - 3rem, 1200px); margin-inline: auto; }
+.sv-section { padding-block: 5rem; scroll-margin-top: 2rem; }
+.sv-eyebrow { color: #005F8F; font-size: .75rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.sv-title { margin-top: .8rem; font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.2; font-weight: 800; letter-spacing: -.035em; }
+.sv-button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; gap: .6rem; border: 1px solid transparent; border-radius: .7rem; padding: .8rem 1.25rem; background: #007DB8; color: white; font-size: .875rem; font-weight: 700; text-align: center; cursor: pointer; }
+.sv-button:hover { background: #005F8F; }
+.sv-button:disabled { opacity: .5; cursor: wait; }
+.sv-acao { min-height: 40px; border: 1px solid #D1D5DB; border-radius: .5rem; padding: .45rem .65rem; font-size: .75rem; color: #005F8F; cursor: pointer; font-weight: 700; }
+.sv-acao:disabled { opacity: .5; cursor: wait; }
+.sv-button-outline { border-color: #007DB8; background: white; color: #005F8F; }
+.sv-button-outline:hover { background: #EFF8FC; }
+.modo-essencial { display: inline-flex; min-height: 32px; align-items: center; gap: .5rem; font-weight: 700; cursor: pointer; }
+.pular-conteudo { position: fixed; top: -100px; left: 1rem; z-index: 100; padding: 1rem; background: white; color: #005F8F; border: 2px solid #007DB8; }
+.pular-conteudo:focus { top: 1rem; }
+:where(a, button, input, select, textarea, summary):focus-visible { outline: 3px solid #007DB8; outline-offset: 4px; }
+html[data-essencial="true"] { font-size: 20px; }
+html[data-essencial="true"] .sv-decorative { display: none; }
+html[data-essencial="true"] .sv-public main section > .sv-container { grid-template-columns: 1fr; }
+html[data-essencial="true"] :where(.sv-public, .sv-profissional) :where(p, label, input, select, button, a) { font-size: max(1rem, 18px); }
+html[data-essencial="true"] .sv-section { padding-block: 2.5rem; }
+@media (max-width: 640px) { .sv-container { width: calc(100% - 2rem); } .sv-section { padding-block: 3rem; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
 * {
   box-sizing: border-box;
 }
@@ -17,4 +45,95 @@ body {
   margin: 0;
   background-color: #F5F7FA;
   color: #111827;
+}
+
+/* Preferências do cidadão. Aplicadas a TODAS as páginas da aplicação. */
+html[data-sv-tema="escuro"] {
+  color-scheme: dark;
+}
+
+html[data-sv-tema="escuro"] body,
+html[data-sv-tema="escuro"] body>div,
+html[data-sv-tema="escuro"] body .min-h-screen,
+html[data-sv-tema="escuro"] main {
+  background-color: #0b0b0b !important;
+  color: #f8fafc;
+}
+
+html[data-sv-tema="escuro"] main :is(.bg-white, .bg-slate-50, .bg-gray-50, .bg-sky-50),
+html[data-sv-tema="escuro"] main [class*="bg-[#F"],
+html[data-sv-tema="escuro"] main [class*="bg-[#E"] {
+  background-color: #1b1b1b !important;
+}
+
+html[data-sv-tema="escuro"] main :is(.text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900),
+html[data-sv-tema="escuro"] main [class*="text-[#00"],
+html[data-sv-tema="escuro"] main [class*="text-[#11"] {
+  color: #f1f5f9 !important;
+}
+
+html[data-sv-tema="escuro"] main :is(input, textarea, select) {
+  background-color: #222 !important;
+  color: #f8fafc !important;
+  border-color: #93a4bd !important;
+}
+
+html[data-sv-tema="escuro"] main :is(input, textarea)::placeholder {
+  color: #cbd5e1;
+}
+
+html[data-sv-contraste="alto"] :is(a, button, input, textarea, select):focus-visible {
+  outline: 4px solid #f59e0b !important;
+  outline-offset: 3px !important;
+}
+
+html[data-sv-contraste="alto"] main :is(a, button, input, textarea, select) {
+  border-width: 2px;
+}
+
+html[data-sv-contraste="alto"] main :is(section, article, input, textarea, select) {
+  border-color: currentColor;
+}
+
+html[data-sv-contraste="alto"] main :is(p, label, h1, h2, h3, h4) {
+  font-weight: 650;
+}
+
+html[data-sv-contraste="alto"][data-sv-tema="claro"] main {
+  color: #000 !important;
+}
+
+html[data-sv-contraste="alto"][data-sv-tema="escuro"] main {
+  color: #fff !important;
+}
+
+/* Modo Simples: fonte maior e áreas de toque amplas. */
+html[data-sv-essencial="sim"] {
+  font-size: 112.5%;
+}
+
+html[data-sv-essencial="sim"] main :is(a, button, input, select, textarea) {
+  min-height: 48px;
+}
+
+html[data-sv-essencial="sim"] main :is(p, label, button, a, input, select, textarea) {
+  font-size: max(1rem, 16px) !important;
+  line-height: 1.5 !important;
+}
+
+html[data-sv-essencial="sim"] .sv-descricao-opcional {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
 }

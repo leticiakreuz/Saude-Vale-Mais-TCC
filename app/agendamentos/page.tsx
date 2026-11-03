@@ -12,6 +12,8 @@ import {
     setDoc,
 } from "firebase/firestore";
 
+import useModoSimples from "@/lib/useModoSimples";
+import AgendamentosSimples from "@/componentes/simples/AgendamentosSimples";
 import Header from "../../componentes/Header";
 import Navigation from "../../componentes/Navigation";
 import Footer from "../../componentes/Footer";
@@ -245,6 +247,7 @@ function agendamentoEstaAtivo(
         "concluido",
         "concluído",
         "finalizado",
+        "falta",
     ].includes(statusNormalizado);
 }
 
@@ -262,6 +265,9 @@ function statusParaExibicao(status: string): string {
     if (normalizado === "cancelado") {
         return "Cancelada";
     }
+    if (normalizado === "falta") return "Falta registrada";
+    if (normalizado === "presente") return "Em atendimento";
+    if (normalizado === "confirmado") return "Confirmada";
 
     if (
         normalizado === "concluido" ||
@@ -283,6 +289,7 @@ function statusParaExibicao(status: string): string {
 // ============================================================
 
 export default function AgendamentosPage() {
+    const modoSimples = useModoSimples();
     const router = useRouter();
 
     // ----------------------------------------------------------
@@ -328,6 +335,7 @@ export default function AgendamentosPage() {
     const [horarioSelecionado, setHorarioSelecionado] =
         useState("");
     const [horariosOcupados, setHorariosOcupados] = useState<string[]>([]);
+    const [horariosBloqueados, setHorariosBloqueados] = useState<string[]>([]);
     const [consultandoHorarios, setConsultandoHorarios] = useState(false);
     const [falhaDisponibilidade, setFalhaDisponibilidade] = useState(false);
     const consultaDisponibilidadeId = useRef(0);
@@ -424,7 +432,7 @@ export default function AgendamentosPage() {
                     setAgendamentos([]);
                     setCarregando(false);
 
-                    router.replace("/entrar");
+                    router.replace("/login");
                     return;
                 }
 
@@ -557,7 +565,7 @@ export default function AgendamentosPage() {
         setMensagem("");
 
         if (!usuario) {
-            router.replace("/entrar");
+            router.replace("/login");
             return;
         }
 
@@ -686,6 +694,7 @@ export default function AgendamentosPage() {
         const id = ++consultaDisponibilidadeId.current;
 
         setHorariosOcupados([]);
+        setHorariosBloqueados([]);
         setHorarioSelecionado("");
         setFalhaDisponibilidade(false);
 
@@ -705,6 +714,7 @@ export default function AgendamentosPage() {
                 const parametros = new URLSearchParams({
                     medico,
                     dia: diaSelecionado,
+                    servico,
                 });
 
                 const resposta = await fetch(
@@ -746,6 +756,7 @@ export default function AgendamentosPage() {
                         : [];
 
                 setHorariosOcupados(ocupados);
+                setHorariosBloqueados(Array.isArray(dados.horariosBloqueados) ? dados.horariosBloqueados.filter((v: unknown): v is string => typeof v === "string") : []);
 
                 // Impede manter selecionado um horário ocupado.
                 setHorarioSelecionado((anterior) =>
@@ -782,11 +793,11 @@ export default function AgendamentosPage() {
         return () => {
             controller.abort();
         };
-    }, [usuario, medico, diaSelecionado, etapa]);
+    }, [usuario, medico, diaSelecionado, etapa, servico]);
 
     // Verifica se o horário já está reservado.
     const horarioOcupado = (horario: string): boolean =>
-        horariosOcupados.includes(horario);
+        horariosOcupados.includes(horario) || horariosBloqueados.includes(horario);
 
     // Os horários são consultados quando a data é selecionada.
     // A disponibilidade de todos os dias ainda não é verificada.
@@ -802,7 +813,7 @@ export default function AgendamentosPage() {
         setMensagem("");
 
         if (!usuario) {
-            router.replace("/entrar");
+            router.replace("/login");
             return;
         }
 
@@ -925,7 +936,7 @@ export default function AgendamentosPage() {
         id: string
     ) => {
         if (!usuario) {
-            router.replace("/entrar");
+            router.replace("/login");
             return;
         }
 
@@ -993,6 +1004,8 @@ export default function AgendamentosPage() {
     // ============================================================
     // INTERFACE
     // ============================================================
+
+    if (modoSimples) return <AgendamentosSimples usuario={usuario} consultas={agendamentos} carregando={carregando} perfilCompleto={perfilEstaCompleto(perfil)} unidade={perfil.unidadeReferencia} cancelar={cancelarAgendamento} salvando={salvando} erroExterno={erro} mensagemExterna={mensagem} />;
 
     return (
         <div className="min-h-screen bg-[#F5F7FA]">
@@ -1726,7 +1739,7 @@ export default function AgendamentosPage() {
 
                                                         <span className="mt-1 block text-[10px] font-medium">
                                                             {ocupado
-                                                                ? "Ocupado"
+                                                                ? (horariosBloqueados.includes(horario) ? "Indisponível" : "Ocupado")
                                                                 : selecionado
                                                                     ? "Selecionado"
                                                                     : "Disponível"}
@@ -1987,7 +2000,7 @@ export default function AgendamentosPage() {
                                                             item.id
                                                         )
                                                     }
-                                                    disabled={salvando}
+                                                    disabled={salvando || item.status === "presente"}
                                                     className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {salvando

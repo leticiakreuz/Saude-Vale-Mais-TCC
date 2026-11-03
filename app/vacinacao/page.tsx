@@ -8,6 +8,8 @@ import { collection, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore"
 import Header from "../../componentes/Header";
 import Navigation from "../../componentes/Navigation";
 import Footer from "../../componentes/Footer";
+import useModoSimples from "@/lib/useModoSimples";
+import VacinasSimples from "@/componentes/simples/VacinasSimples";
 import { auth, db } from "../firebase";
 import {
   aplicada,
@@ -59,6 +61,8 @@ function situacaoRegistro(registro: RegistroVacinal): { texto: string; cor: stri
 }
 
 export default function VacinacaoPage() {
+  const modoSimples = useModoSimples();
+  const [verCompleta, setVerCompleta] = useState(false);
   const [usuario, setUsuario] = useState<User | null>(null);
   const [perfil, setPerfil] = useState<PerfilVacinal>({});
   const [registros, setRegistros] = useState<RegistroVacinal[]>([]);
@@ -173,7 +177,7 @@ export default function VacinacaoPage() {
   const estilo = ESTILOS[fase];
   const avaliacao = useMemo(() => avaliarComprovante(perfil, registros), [perfil, registros]);
   const contextoAtual = faseAtual === fase || (fase === "Gestante" && perfil.gestanteAtual && periodoGestacao === "atual");
-  const podeEmitir = !!usuario && !carregando && contextoAtual && avaliacao.apto;
+  const podeEmitir = !!usuario && !carregando && !!contextoAtual && avaliacao.apto;
 
   const anosGestacoesAnteriores = useMemo(() => [...new Set(
     registros.filter((r) => r.fase === "Gestante" && r.periodoGestacao === "anterior")
@@ -274,12 +278,14 @@ export default function VacinacaoPage() {
 
   const campo = "mt-1 w-full rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-sm text-[#111827] outline-none focus:border-[#007DB8] focus:ring-2 focus:ring-[#8ED3F5]/60";
 
+  if (modoSimples && !verCompleta) return <VacinasSimples registros={registros} carregando={carregando} erro={erro} aviso={aviso} autenticado={!!usuario} podeEmitir={podeEmitir} emitindo={emitindo} baixar={baixarComprovante} abrirCompleta={() => setVerCompleta(true)} />;
+
   return (
     <div className="min-h-screen bg-[#F5F7FA] text-[#111827]">
       <Header />
       <Navigation />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
-        <Link href="/dashboard" className="mb-5 inline-block text-sm font-bold text-[#005F8F] hover:underline">← Voltar ao painel</Link>
+        {modoSimples && <button type="button" onClick={() => setVerCompleta(false)} className="sv-button sv-button-outline mb-5">← Vacinas no Modo Simples</button>}
         <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007DB8]">Saúde Vale+ · Prevenção</p>
