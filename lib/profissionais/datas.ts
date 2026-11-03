@@ -1,0 +1,4 @@
+export function hojeBrasil(agora = new Date()) { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(agora); }
+export function dataReal(valor: string) { if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false; const data = new Date(valor + "T12:00:00Z"); return Number.isFinite(data.getTime()) && data.toISOString().slice(0, 10) === valor; }
+export function dataAgendavel(valor: string, hoje = hojeBrasil()) { if (!dataReal(valor)) return false; const d = new Date(valor + "T12:00:00Z"); const distancia = (d.getTime() - new Date(hoje + "T12:00:00Z").getTime()) / 86400000; return d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && distancia >= 0 && distancia < 21; }
+export function formatarData(valor: string) { return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor.split("-").reverse().join("/") : valor; }

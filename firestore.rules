@@ -1,16 +1,51 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    match /usuarios/{userId} {
-      allow create: if request.auth != null
-        && request.auth.uid == userId;
-
-      allow read, update, delete: if request.auth != null
-        && request.auth.uid == userId;
+    function dono(uid) { return request.auth != null && request.auth.uid == uid; }
+    function camposPerfil() { return ['uid', 'nome', 'email', 'cpf', 'telefone', 'dataNascimento', 'numeroSUS', 'cartaoSus', 'dataEmissaoSUS', 'emailResponsavel', 'cep', 'rua', 'numero', 'bairro', 'cidade', 'uf', 'unidade', 'unidadeReferencia', 'acessibilidade', 'emailVerificado', 'criadoEm', 'perfilAtualizadoEm', 'gestanteAtual', 'jaFoiGestante', 'semanasGestacao', 'inicioGestacao']; }
+    match /usuarios/{uid} {
+      allow read: if dono(uid);
+      allow create: if dono(uid)
+        && request.resource.data.keys().hasOnly(camposPerfil())
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.get('unidadeReferencia', '') == ''
+        && request.resource.data.get('unidade', '') == '';
+      // O vínculo territorial é administrado no servidor. Campos de cargo nunca são aceitos.
+      allow update: if dono(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposPerfil())
+        && request.resource.data.get('uid', uid) == uid
+        && request.resource.data.get('email', request.auth.token.email) == request.auth.token.email
+        && (request.resource.data.get('unidadeReferencia', '') == resource.data.get('unidadeReferencia', '')
+          || (resource.data.get('unidadeReferencia', '') == '' && request.resource.data.get('unidadeReferencia', '') == resource.data.get('unidade', '')))
+        && (request.resource.data.get('unidade', '') == resource.data.get('unidade', '')
+          || (resource.data.get('unidade', '') == '' && request.resource.data.get('unidade', '') == resource.data.get('unidadeReferencia', '')));
+      allow delete: if false;
+      match /agendamentos/{id} { allow read: if dono(uid); allow write: if false; }
+      match /controleAgendamento/{id} { allow read: if dono(uid); allow write: if false; }
+      match /medicamentos/{id} { allow read: if dono(uid); allow write: if false; }
+      match /vacinacao/{id} { allow read: if dono(uid); allow write: if false; }
+      match /reclamacoes/{id} {
+        allow read: if dono(uid);
+        allow create: if dono(uid)
+          && request.resource.data.keys().hasOnly(['tipo', 'assunto', 'descricao', 'status', 'criadaEm', 'uid'])
+          && request.resource.data.uid == uid
+          && request.resource.data.status == 'Recebida'
+          && request.resource.data.tipo in ['Reclamação', 'Sugestão', 'Elogio', 'Solicitação']
+          && request.resource.data.assunto is string && request.resource.data.assunto.size() > 0 && request.resource.data.assunto.size() <= 200
+          && request.resource.data.descricao is string && request.resource.data.descricao.size() >= 10 && request.resource.data.descricao.size() <= 5000
+          && request.resource.data.criadaEm == request.time;
+        allow update, delete: if false;
+      }
     }
+    match /calendarioVacinacao/{id} { allow read: if request.auth != null; allow write: if false; }
+    // Firebase Admin ignora as Rules: cada API valida cargo, permissão, status e UBS no servidor.
+    match /profissionais/{id} { allow read, write: if false; }
+    match /vinculosAgenda/{id} { allow read, write: if false; }
+    match /escalas/{id} { allow read, write: if false; }
+    match /servicosAtendimento/{id} { allow read, write: if false; }
+    match /horariosReservados/{id} { allow read, write: if false; }
+    match /auditoria/{id} { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }
-

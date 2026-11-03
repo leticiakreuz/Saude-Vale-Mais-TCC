@@ -3,6 +3,10 @@ import { createHash } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { validarOferta } from "@/lib/profissionais/agendaRegras";
+import { auditoria } from "@/lib/profissionais/agendamentos";
+import { ErroAcesso } from "@/lib/profissionais/autorizacao";
+import { dataAgendavel } from "@/lib/profissionais/datas";
 
 export const runtime = "nodejs";
 
@@ -164,7 +168,7 @@ export async function POST(request: NextRequest) {
             return respostaErro("Horário inválido.", 400);
         }
 
-        if (!dataValida(dia)) {
+        if (!dataAgendavel(dia)) {
             return respostaErro("Data indisponível.", 400);
         }
 
@@ -227,11 +231,16 @@ export async function POST(request: NextRequest) {
         // Transação: impede duas reservas do mesmo horário
         const resultado = await adminDb.runTransaction(
             async (transacao) => {
+                const perfilAtual = await transacao.get(usuarioRef);
+                if (perfilAtual.data()?.unidadeReferencia !== unidade) throw new ErroAcesso("O vínculo com a UBS mudou. Atualize seu perfil antes de agendar.", 409);
                 const reservaSnapshot =
                     await transacao.get(reservaRef);
 
                 const controleSnapshot =
                     await transacao.get(controleRef);
+
+                // Escalas, bloqueios e vínculos são lidos na mesma transação da reserva.
+                await validarOferta(transacao, unidade, medico, dia, horario, servico);
 
                 const agendamentoAnteriorId =
                     controleSnapshot.exists
@@ -261,6 +270,7 @@ export async function POST(request: NextRequest) {
                             "concluido",
                             "concluído",
                             "finalizado",
+                            "falta",
                         ].includes(status);
                     }
                 }
@@ -311,6 +321,8 @@ export async function POST(request: NextRequest) {
                     atualizadoEm: FieldValue.serverTimestamp(),
                 });
 
+                auditoria(transacao, { uid: usuario.uid, unidadeReferencia: unidade }, "reserva-paciente", novoAgendamentoRef.path, null, { dia, horario, medico, status: "agendado" });
+
                 return "confirmado";
             }
         );
@@ -337,6 +349,7 @@ export async function POST(request: NextRequest) {
             { status: 201 }
         );
     } catch (erro) {
+        if (erro instanceof ErroAcesso) return respostaErro(erro.message, erro.status);
         console.error("Erro ao reservar horário:", erro);
 
         return respostaErro(
