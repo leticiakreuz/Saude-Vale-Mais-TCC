@@ -7,7 +7,11 @@ export const metadata: Metadata = {
   title: "Saúde Vale+",
   description: "Plataforma digital para facilitar o acesso aos serviços de saúde pública.",
   appleWebApp: { capable: true, title: "Saúde Vale+", statusBarStyle: "default" },
-  icons: { apple: "/app-icon/192" },
+  icons: {
+    icon: { url: "/icon?v=saude-vale-1", type: "image/png", sizes: "64x64" },
+    shortcut: "/icon?v=saude-vale-1",
+    apple: "/app-icon/192?v=simbolo-2",
+  },
 };
 
 export default function RootLayout({
