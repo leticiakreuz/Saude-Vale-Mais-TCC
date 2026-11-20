@@ -17,6 +17,7 @@ serviceAccountKey.json
 
 # testing
 /coverage
+/output/revisao-visual/
 
 # next.js
 /.next/

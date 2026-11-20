@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -17,6 +17,7 @@ import Header from "../../componentes/Header";
 import Navigation from "../../componentes/Navigation";
 import Footer from "../../componentes/Footer";
 import { auth, db } from "../firebase";
+import { EVENTO_ACESSIBILIDADE } from "@/lib/acessibilidade";
 import {
   lerPreferencias,
   salvarPreferencias,
@@ -31,6 +32,7 @@ type Perfil = {
   cpf?: string;
   telefone?: string;
   dataNascimento?: string;
+  sexo?: string;
   numeroSUS?: string;
   cartaoSus?: string;
   dataEmissaoSUS?: string;
@@ -56,7 +58,7 @@ type Manifestacao = {
 };
 
 const obrigatorios: (keyof Perfil)[] = [
-  "nome", "cpf", "telefone", "dataNascimento", "numeroSUS", "cep", "rua", "numero", "bairro", "cidade",
+  "nome", "cpf", "telefone", "dataNascimento", "cep", "rua", "numero", "bairro", "cidade",
 ];
 const somenteNumeros = (valor: string) => valor.replace(/\D/g, "");
 const tituloPorSecao: Record<Exclude<Secao, "inicio">, string> = {
@@ -66,6 +68,7 @@ const tituloPorSecao: Record<Exclude<Secao, "inicio">, string> = {
   acessibilidade: "Preferências de acessibilidade",
   reclamacoes: "Ouvidoria — reclamações e sugestões",
 };
+const destinosDeVolta = new Set(["/dashboard", "/agendamentos", "/medicamentos", "/vacinacao", "/perfil"]);
 
 function normalizarPerfil(p: Perfil): Perfil {
   return {
@@ -117,8 +120,12 @@ const itensMenu: { secao: Exclude<Secao, "inicio">; icone: NomeIcone; titulo: st
 function ConteudoPerfil() {
   const router = useRouter();
   const params = useSearchParams();
-  const [secao, setSecao] = useState<Secao>("inicio");
-  useEffect(() => { if (params.get("secao") === "acessibilidade") setSecao("acessibilidade"); }, [params]);
+  const [secaoInterna, setSecao] = useState<Secao>("inicio");
+  const abriuPeloCabecalho = params.get("secao") === "acessibilidade";
+  const secao = abriuPeloCabecalho ? "acessibilidade" : secaoInterna;
+  const emAcessibilidade = secao === "acessibilidade";
+  const origem = params.get("voltar") ?? "";
+  const destino = destinosDeVolta.has(origem) ? origem : "/dashboard";
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [consultandoCep, setConsultandoCep] = useState(false);
@@ -137,6 +144,18 @@ function ConteudoPerfil() {
   const idade = idadeAtual(perfil.dataNascimento);
   const perfilCompleto = obrigatorios.every(c => String(perfil[c] ?? "").trim() !== "") &&
     !(idade !== null && idade < 10 && !perfil.emailResponsavel?.trim());
+
+  const voltarDaAcessibilidade = useCallback(() => {
+    setSecao("inicio");
+    if (abriuPeloCabecalho) router.replace(destino);
+    else window.scrollTo(0, 0);
+  }, [abriuPeloCabecalho, destino, router]);
+
+  useEffect(() => {
+    const atualizar = () => setPreferencias(lerPreferencias());
+    window.addEventListener(EVENTO_ACESSIBILIDADE, atualizar);
+    return () => window.removeEventListener(EVENTO_ACESSIBILIDADE, atualizar);
+  }, []);
 
   useEffect(() => {
     setPreferencias(lerPreferencias());
@@ -189,6 +208,7 @@ function ConteudoPerfil() {
     setSecao(nova);
     setErro("");
     setMensagem("");
+    if (nova === "acessibilidade") window.scrollTo(0, 0);
   }
 
   function atualizar(campo: keyof Perfil, valor: string) {
@@ -201,6 +221,7 @@ function ConteudoPerfil() {
     const novo = { ...preferencias, ...alteracoes };
     setPreferencias(novo);
     salvarPreferencias(novo);
+    if (!preferencias.modoEssencial && novo.modoEssencial) voltarDaAcessibilidade();
   }
 
   async function consultarCep() {
@@ -254,7 +275,7 @@ function ConteudoPerfil() {
         if (responsavel.toLowerCase() === (usuario.email ?? email).toLowerCase()) { setErro("O e-mail do responsável deve ser diferente do e-mail da criança."); return; }
       }
     }
-    if (secao === "sus" && cns.length !== 15) { setErro("O CNS deve conter 15 números."); return; }
+    if (secao === "sus" && cns && cns.length !== 15) { setErro("O CNS deve conter 15 números ou ficar em branco."); return; }
     if (secao === "endereco") {
       if (![dados.rua, dados.numero, dados.bairro, dados.cidade].every(valor => !!valor?.trim())) {
         setErro("Preencha rua, número, bairro e cidade."); return;
@@ -274,7 +295,7 @@ function ConteudoPerfil() {
         email: usuario.email ?? email,
         ...(dados.cpf !== undefined ? { cpf } : {}),
         ...(dados.telefone !== undefined ? { telefone } : {}),
-        ...(cns ? { numeroSUS: cns, cartaoSus: cns } : {}),
+        numeroSUS: cns, cartaoSus: cns,
         ...(cep ? { cep } : {}),
         unidade: dados.unidade ?? dados.unidadeReferencia ?? "",
         unidadeReferencia: dados.unidadeReferencia ?? dados.unidade ?? "",
@@ -285,7 +306,7 @@ function ConteudoPerfil() {
         ...p, ...dados, ...resultado.perfil,
         ...(cpf ? { cpf } : {}),
         ...(telefone ? { telefone: formatarTelefone(telefone) } : {}),
-        ...(cns ? { numeroSUS: cns, cartaoSus: cns } : {}),
+        numeroSUS: cns, cartaoSus: cns,
         ...(cep ? { cep } : {}),
       }));
       setMensagem("Dados atualizados com sucesso.");
@@ -329,15 +350,17 @@ function ConteudoPerfil() {
       <Header />
       <Navigation />
       <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-        <div className="mb-6 flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center">
+        <div className="mb-6 flex flex-col items-center gap-4 border-b border-slate-200 pb-6 text-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007DB8]">Área do cidadão</p>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-[#005F8F] sm:text-4xl">Meu perfil</h1>
+            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-[#005F8F] sm:text-4xl">
+              {emAcessibilidade ? tituloPorSecao.acessibilidade : "Meu perfil"}
+            </h1>
           </div>
-          <button type="button" onClick={() => router.push("/dashboard")}
-            className="min-h-12 self-start rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-[#005F8F]">
-            ← Voltar ao painel
-          </button>
+          {emAcessibilidade && <button type="button" onClick={voltarDaAcessibilidade}
+            className="min-h-12 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-[#005F8F]">
+            ← Voltar
+          </button>}
         </div>
 
         {params.get("pendencias") === "1" && (
@@ -352,7 +375,7 @@ function ConteudoPerfil() {
           <div className="rounded-2xl bg-white p-8 text-slate-700">Carregando dados do perfil...</div>
         ) : (
           <>
-            <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-7">
+            {!emAcessibilidade && <section className="mb-6 flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:p-7">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#E7F4FB] text-2xl font-bold text-[#005F8F]" aria-hidden="true">
                 {(perfil.nome || "C").trim().split(/\s+/).slice(0, 2).map(p => p.charAt(0)).join("").toUpperCase()}
               </div>
@@ -363,7 +386,7 @@ function ConteudoPerfil() {
               <span className={`w-fit rounded-xl border px-4 py-2 text-sm font-bold ${perfilCompleto ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
                 {perfilCompleto ? "Cadastro completo" : "Cadastro incompleto"}
               </span>
-            </section>
+            </section>}
 
             {secao === "inicio" ? (
               <section aria-label="Opções do perfil" className="grid gap-3 sm:grid-cols-2">
@@ -385,12 +408,12 @@ function ConteudoPerfil() {
               </section>
             ) : (
               <>
-                <button type="button" onClick={() => trocarSecao("inicio")}
-                  className="mb-5 min-h-12 rounded-xl px-2 text-base font-bold text-[#005F8F] hover:underline">
+                {!emAcessibilidade && <button type="button" onClick={() => trocarSecao("inicio")}
+                  className="mx-auto mb-5 block min-h-12 rounded-xl px-2 text-base font-bold text-[#005F8F] hover:underline">
                   ← Voltar às opções
-                </button>
+                </button>}
                 <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
-                  <h2 className="text-xl font-extrabold text-[#005F8F] sm:text-2xl">{tituloPorSecao[secao]}</h2>
+                  {!emAcessibilidade && <h2 className="text-center text-xl font-extrabold text-[#005F8F] sm:text-2xl">{tituloPorSecao[secao]}</h2>}
                   {secao === "pessoais" && (
                     <form className="mt-6 space-y-5" onSubmit={salvarPerfil}>
                       <div className="grid gap-5 sm:grid-cols-2">
@@ -413,6 +436,10 @@ function ConteudoPerfil() {
                         <div>
                           <label htmlFor="telefone" className={estiloLabel}>Telefone *</label>
                           <input id="telefone" type="tel" className={estiloInput} value={perfil.telefone ?? ""} onChange={e => atualizar("telefone", formatarTelefone(e.target.value))} required autoComplete="tel" placeholder="(47) 99999-9999" />
+                        </div>
+                        <div>
+                          <label htmlFor="sexo" className={estiloLabel}>Sexo (opcional)</label>
+                          <select id="sexo" className={estiloInput} value={perfil.sexo ?? ""} onChange={e => atualizar("sexo", e.target.value)}><option value="">Não informado</option><option>Feminino</option><option>Masculino</option></select>
                         </div>
                         {idade !== null && idade < 10 && (
                           <div>
@@ -466,26 +493,25 @@ function ConteudoPerfil() {
                   )}
                   {secao === "sus" && (
                     <form className="mt-6 space-y-6" onSubmit={salvarPerfil}>
-                      <div className="relative mx-auto aspect-[1000/638] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-emerald-800 bg-cover bg-center shadow-lg" style={{ backgroundImage: "url('/imagens/cartao-sus.png')" }} role="img" aria-label="Representação visual do Cartão Nacional de Saúde">
-                        <div className="absolute left-[8%] top-[47%] max-w-[58%] text-[clamp(10px,1.5vw,18px)] font-semibold text-white drop-shadow-md">
-                          <div className="mb-[6%] truncate">{perfil.nome?.trim() || "Nome do cidadão"}</div>
-                          <div className="mb-[4%]">Nº CNS: {perfil.numeroSUS || perfil.cartaoSus || "Não informado"}</div>
-                          <div>Emissão: {perfil.dataEmissaoSUS || "Não informada"}</div>
-                        </div>
-                      </div>
+                      <section aria-label="Identificação do Cartão SUS" className="relative mx-auto aspect-[1000/638] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-emerald-800 bg-cover bg-center shadow-lg [container-type:inline-size]" style={{ backgroundImage: "url('/imagens/cartao-sus.png')" }}>
+                        <dl className="absolute left-[8%] top-[47%] w-[58%] space-y-[2cqw] text-[clamp(10px,3.2cqw,22px)] font-bold leading-[1.3] tracking-[0.01em] text-[#E3E5E5]" style={{ fontFamily: 'Arial, Helvetica, sans-serif', textShadow: '0 1px 1px rgb(0 0 0 / 12%)' }}>
+                          <div><dt className="sr-only">Nome</dt><dd className="break-words">{perfil.nome?.trim() || "Nome do cidadão"}</dd></div>
+                          <div><dt className="inline">Nº CNS: </dt><dd className="inline break-all">{perfil.numeroSUS || perfil.cartaoSus || "Não informado"}</dd></div>
+                          <div><dt className="inline">Emissão: </dt><dd className="inline">{perfil.dataEmissaoSUS || "Não informada"}</dd></div>
+                        </dl>
+                      </section>
                       <div>
-                        <label htmlFor="cns" className={estiloLabel}>Número do Cartão SUS (CNS) *</label>
-                        <input id="cns" className={estiloInput} value={perfil.numeroSUS ?? perfil.cartaoSus ?? ""} onChange={e => atualizar("numeroSUS", somenteNumeros(e.target.value).slice(0, 15))} required inputMode="numeric" placeholder="15 números" />
-                        <p className="mt-2 text-sm text-slate-600">A imagem é ilustrativa e não substitui o cartão oficial.</p>
+                        <label htmlFor="cns" className={estiloLabel}>Número do Cartão SUS (CNS) — opcional</label>
+                        <input id="cns" className={estiloInput} value={perfil.numeroSUS ?? perfil.cartaoSus ?? ""} onChange={e => atualizar("numeroSUS", somenteNumeros(e.target.value).slice(0, 15))} inputMode="numeric" placeholder="15 números" />
                       </div>
                       {salvarBotao()}
                     </form>
                   )}
                   {secao === "acessibilidade" && (
-                    <div className="mt-6 space-y-6">
+                    <div className="space-y-6 text-center">
                       <p className="text-sm leading-6 text-slate-600 sv-descricao-opcional">Personalize a leitura e a navegação. As alterações acontecem imediatamente e ficam salvas neste navegador.</p>
                       <fieldset className="rounded-2xl border border-slate-200 p-4 sm:p-5">
-                        <legend className="px-2 text-lg font-extrabold text-[#005F8F]">Fundo do aplicativo</legend>
+                        <legend className="mx-auto px-2 text-lg font-extrabold text-[#005F8F]">Fundo do aplicativo</legend>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           {([{ valor: "claro", rotulo: "Fundo branco" }, { valor: "escuro", rotulo: "Fundo preto" }] as const).map(opcao => (
                             <button key={opcao.valor} type="button" aria-pressed={preferencias.tema === opcao.valor}
@@ -497,7 +523,7 @@ function ConteudoPerfil() {
                           ))}
                         </div>
                       </fieldset>
-                      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                      <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 p-4 sm:p-5">
                         <div>
                           <h3 className="text-lg font-extrabold text-[#005F8F]">Alto contraste</h3>
                           <p className="mt-1 text-sm text-slate-600 sv-descricao-opcional">Destaca campos, bordas e o foco dos botões.</p>
@@ -509,12 +535,12 @@ function ConteudoPerfil() {
                         </button>
                       </div>
                       <div className="rounded-2xl border-2 border-[#8ED3F5] bg-[#EEF8FD] p-4 sm:p-5">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col items-center gap-4">
                           <div>
                             <h3 className="text-lg font-extrabold text-[#005F8F]">Modo Simples</h3>
                             <p className="mt-1 text-sm leading-6 text-slate-700 sv-descricao-opcional">Letras maiores, botões de fácil toque, menos descrições e atalhos diretos para os principais serviços. Disponível para qualquer idade.</p>
                           </div>
-                          <button type="button" role="switch" aria-checked={preferencias.modoEssencial}
+                          <button type="button" role="switch" aria-label="Modo Simples" aria-checked={preferencias.modoEssencial}
                             onClick={() => alterarPreferencias({ modoEssencial: !preferencias.modoEssencial })}
                             className={`min-h-12 min-w-36 rounded-xl px-5 py-3 font-bold ${preferencias.modoEssencial ? "bg-[#005F8F] text-white" : "border-2 border-[#005F8F] bg-white text-[#005F8F]"}`}>
                             {preferencias.modoEssencial ? "Ativado" : "Ativar"}

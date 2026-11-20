@@ -63,31 +63,33 @@ function ambiente() {
     new vm.Script("(function(require,module,exports){" + codigo + "\n})", { filename: absoluto }).runInThisContext()(importar, modulo, modulo.exports);
     return modulo.exports;
   }
-  const modelos = carregar("lib/profissionais/modelos.ts"), regras = carregar("lib/profissionais/agendaRegras.ts"), datas = carregar("lib/profissionais/datas.ts");
+
+  const datas = carregar("lib/datas.ts");
+  const regras = carregar("lib/agendamentos/agendaRegras.ts");
   const unidade = "UBS Acadêmica Vale";
-  function profissional(uid, cargo, nomeAgenda) {
-    const p = { uid, nome: uid, email: uid + "@saudevale.example", nomeAgenda, registro: "DEMO", unidadeReferencia: unidade, ativo: true, cargo, permissoes: [...modelos.PADRAO[cargo]], versao: 1 };
-    documentos.set("profissionais/" + uid, structuredClone(p));
-    documentos.set("vinculosAgenda/" + regras.chave(unidade, nomeAgenda), { uid, unidadeReferencia: unidade, nomeAgenda });
-    tokens.set(uid, { uid, profissional: true, cargo, unidadeReferencia: unidade, versaoProfissional: 1, auth_time: Date.now() / 1000 });
-    return p;
+  for (const uid of ["paciente1", "paciente2"]) {
+    tokens.set(uid, {uid, email: uid + "@example.invalid", profissional: true, cargo: "administracao"});
+    documentos.set("usuarios/" + uid, {
+      uid, email: uid + "@example.invalid", nome: "Pessoa Fictícia Teste",
+      cpf: "52998224725", telefone: "47999999999", dataNascimento: "1990-01-01",
+      numeroSUS: "700000000000003", emailResponsavel: "", cep: "89010001",
+      rua: "Rua 15 de Novembro", numero: "100", bairro: "Centro", cidade: "Blumenau", uf: "SC",
+      unidadeReferencia: unidade, cadastroVersao: 2,
+    });
   }
-  const recepcao = profissional("recepcao", "recepcao", "Recepção Demonstração");
-  const medico = profissional("medico", "medico", "Dr. Rafael Martins");
-  const dentista = profissional("dentista", "odontologia", "Dra. Camila Souza");
-  const enfermagem = profissional("enfermagem", "enfermagem", "Enfermagem Demonstração");
-  const admin = profissional("admin", "administracao", "Administração Demonstração");
-  documentos.set("usuarios/paciente1", { nome: "Paciente Demonstração 1", unidadeReferencia: unidade });
-  documentos.set("usuarios/paciente2", { nome: "Paciente Demonstração 2", unidadeReferencia: unidade });
   const data = new Date(datas.hojeBrasil() + "T12:00:00Z");
-  do { data.setUTCDate(data.getUTCDate() + 1); } while ([0, 6].includes(data.getUTCDay()));
-  const dia = data.toISOString().slice(0, 10);
-  const alterar = carregar("lib/profissionais/agendamentos.ts").alterarAgendamento;
-  const pedido = (extra = {}) => ({ acao: "reservar", pacienteId: "paciente1", profissionalId: "medico", dia, horario: "08:30", servico: "Consulta médica", ...extra });
-  return { documentos, carregar, tokens, modelos, regras, datas, recepcao, medico, dentista, enfermagem, admin, alterar, pedido, dia };
+  do { data.setUTCDate(data.getUTCDate() + 1); } while ([0,6].includes(data.getUTCDay()));
+  const dia = data.toISOString().slice(0,10);
+  const reservar = carregar("app/api/agendamentos/reservar/route.ts").POST;
+  const cancelar = carregar("app/api/agendamentos/cancelar/route.ts").POST;
+  const pedido = (dados, uid = "paciente1") => new Request("http://localhost/api/agendamentos", {
+    method: "POST", headers: {Authorization: "Bearer " + uid, "Content-Type": "application/json"}, body: JSON.stringify(dados),
+  });
+  const consulta = (extra = {}) => ({servico: "Consulta médica", periodo: "Manhã", medico: "Dr. Rafael Martins", dia, horario: "08:30", ...extra});
+  return {documentos, tokens, carregar, datas, regras, unidade, dia, reservar, cancelar, pedido, consulta};
 }
 
-test("Datas são validadas no fuso brasileiro, rejeitando fins de semana e datas inexistentes", () => {
+test("Datas de consultas respeitam o fuso brasileiro, dias úteis e o limite de 21 dias", () => {
   const a = ambiente();
   assert.equal(a.datas.hojeBrasil(new Date("2026-11-03T01:00:00Z")), "2026-11-02");
   assert.equal(a.datas.dataAgendavel("2026-11-03", "2026-11-02"), true);
@@ -95,83 +97,59 @@ test("Datas são validadas no fuso brasileiro, rejeitando fins de semana e datas
   assert.equal(a.datas.dataAgendavel("2026-11-23", "2026-11-02"), false);
   assert.equal(a.datas.dataReal("2026-02-30"), false);
 });
-test("Paciente não ganha acesso profissional com cargo falsificado no perfil", async () => {
-  const a = ambiente(); a.tokens.set("paciente", { uid: "paciente1", cargo: "administracao" });
-  a.documentos.set("usuarios/paciente1", { cargo: "administracao", permissoes: ["profissionais.gerenciar"] });
-  await assert.rejects(a.carregar("lib/profissionais/autorizacao.ts").autorizar(new Request("http://localhost", { headers: { Authorization: "Bearer paciente" } })), /não autorizado/);
-});
-test("Claims divergentes, profissional inativo e sessão de outra função são recusados", async () => {
-  const a = ambiente(), auth = a.carregar("lib/profissionais/autorizacao.ts");
-  await assert.rejects(auth.profissionalDoToken({ ...a.tokens.get("medico"), unidadeReferencia: "Outra UBS" }), /inativo ou mudou/);
-  a.documentos.get("profissionais/medico").ativo = false;
-  await assert.rejects(auth.profissionalDoToken(a.tokens.get("medico")), /inativo ou mudou/);
-  a.tokens.set("sessao", a.tokens.get("recepcao"));
-  await assert.rejects(auth.autorizarPagina("medico"), /outra função/);
-});
-test("Recepção não emite receitas nem consulta vacinas; administração não tem acesso clínico", async () => {
-  const a = ambiente(), auth = a.carregar("lib/profissionais/autorizacao.ts");
-  for (const permissao of ["receita.emitir", "vacina.ler", "profissionais.gerenciar"]) await assert.rejects(auth.profissionalDoToken(a.tokens.get("recepcao"), permissao), /não tem permissão/);
-  assert.equal(a.modelos.permite(a.admin, "vacina.ler"), false);
-  assert.equal(a.modelos.permite(a.enfermagem, "receita.emitir"), false);
-  const rota = a.carregar("app/api/profissional/registros/route.ts");
-  const r = await rota.POST(new Request("http://localhost", { method: "POST", headers: { Authorization: "Bearer recepcao", "Content-Type": "application/json" }, body: JSON.stringify({ tipo: "medicamento" }) }));
-  assert.equal(r.status, 403);
-});
-test("Duas reservas concorrentes para o mesmo horário produzem uma única consulta", async () => {
+
+test("Login sempre usa o perfil cidadão mesmo com claims profissionais antigas", async () => {
   const a = ambiente();
-  const resultados = await Promise.allSettled([a.alterar(a.recepcao, a.pedido()), a.alterar(a.recepcao, a.pedido({ pacienteId: "paciente2" }))]);
-  assert.equal(resultados.filter(r => r.status === "fulfilled").length, 1);
-  assert.equal([...a.documentos].filter(([k]) => /^usuarios\/[^/]+\/agendamentos\/[^/]+$/.test(k)).length, 1);
-  assert.equal([...a.documentos].filter(([k]) => k.startsWith("auditoria/")).length, 1);
+  const acesso = a.carregar("app/api/acesso/route.ts");
+  const resposta = await acesso.POST(a.pedido({}));
+  assert.equal(resposta.status, 200);
+  assert.equal((await resposta.json()).destino, "/dashboard");
+  assert.ok(resposta.headers.get("set-cookie").includes("sv-profissional="));
+  a.documentos.set("usuarios/paciente1", {nome: "Perfil incompleto", cadastroVersao: 1});
+  assert.equal((await (await acesso.POST(a.pedido({}))).json()).destino, "/completar-cadastro");
+  assert.equal((await acesso.POST(new Request("http://localhost/api/acesso", {method:"POST"}))).status, 401);
 });
-test("Uma consulta ativa impede uma segunda reserva para o mesmo paciente", async () => {
-  const a = ambiente(); await a.alterar(a.recepcao, a.pedido());
-  await assert.rejects(a.alterar(a.recepcao, a.pedido({ horario: "10:30" })), /consulta ativa/);
-});
-test("Remarcação libera o horário anterior e mantém a consulta e o controle vinculados", async () => {
-  const a = ambiente(), criada = await a.alterar(a.recepcao, a.pedido());
-  await a.alterar(a.recepcao, a.pedido({ acao: "remarcar", agendamentoId: criada.agendamentoId, statusEsperado: "agendado", horario: "10:30" }));
-  const anterior = a.regras.chave(a.recepcao.unidadeReferencia, a.medico.nomeAgenda, a.dia, "08:30"), nova = a.regras.chave(a.recepcao.unidadeReferencia, a.medico.nomeAgenda, a.dia, "10:30");
-  assert.equal(a.documentos.get("horariosReservados/" + anterior).status, "cancelado");
-  assert.equal(a.documentos.get("horariosReservados/" + nova).status, "reservado");
-  assert.equal(a.documentos.get("usuarios/paciente1/agendamentos/" + criada.agendamentoId).reservaId, nova);
-  assert.equal(a.documentos.get("usuarios/paciente1/controleAgendamento/ativo").agendamentoId, criada.agendamentoId);
-});
-test("Falha na remarcação por conflito preserva integralmente o agendamento anterior", async () => {
-  const a = ambiente(), criada = await a.alterar(a.recepcao, a.pedido());
-  await a.alterar(a.recepcao, a.pedido({ pacienteId: "paciente2", horario: "10:30" }));
-  const antes = structuredClone([...a.documentos]);
-  await assert.rejects(a.alterar(a.recepcao, a.pedido({ acao: "remarcar", agendamentoId: criada.agendamentoId, statusEsperado: "agendado", horario: "10:30" })), /reservado/);
-  assert.deepEqual([...a.documentos], antes);
-});
-test("Outra UBS, escala bloqueada e profissional inativo não podem receber reservas", async () => {
+
+test("Duas reservas concorrentes pelo cidadão produzem uma única consulta", async () => {
   const a = ambiente();
-  a.documentos.get("usuarios/paciente1").unidadeReferencia = "Outra UBS";
-  await assert.rejects(a.alterar(a.recepcao, a.pedido()), /não vinculado/);
-  a.documentos.get("usuarios/paciente1").unidadeReferencia = a.recepcao.unidadeReferencia;
-  a.documentos.set("escalas/" + a.regras.chave(a.recepcao.unidadeReferencia, a.medico.nomeAgenda, a.dia), { horarios: ["08:30"], bloqueios: ["08:30"], servicos: ["Consulta médica"], ativo: true });
-  await assert.rejects(a.alterar(a.recepcao, a.pedido()), /bloqueado/);
-  a.documentos.delete("escalas/" + a.regras.chave(a.recepcao.unidadeReferencia, a.medico.nomeAgenda, a.dia));
-  a.documentos.get("profissionais/medico").ativo = false;
-  await assert.rejects(a.alterar(a.recepcao, a.pedido()), /indisponível/);
+  const respostas = await Promise.all([a.reservar(a.pedido(a.consulta())), a.reservar(a.pedido(a.consulta(), "paciente2"))]);
+  assert.deepEqual(respostas.map(r => r.status).sort(), [201,409]);
+  assert.equal([...a.documentos.keys()].filter(k => k.includes("/agendamentos/")).length, 1);
 });
-test("Médico só altera sua própria agenda e não registra atendimento futuro", async () => {
-  const a = ambiente(), criada = await a.alterar(a.recepcao, a.pedido());
-  await assert.rejects(a.alterar(a.dentista, { acao: "confirmar", pacienteId: "paciente1", agendamentoId: criada.agendamentoId, statusEsperado: "agendado" }), /própria agenda/);
-  await assert.rejects(a.alterar(a.medico, { acao: "presente", pacienteId: "paciente1", agendamentoId: criada.agendamentoId, statusEsperado: "agendado" }), /data futura/);
+
+test("Uma consulta ativa impede a segunda reserva do mesmo cidadão", async () => {
+  const a = ambiente();
+  assert.equal((await a.reservar(a.pedido(a.consulta()))).status, 201);
+  assert.equal((await a.reservar(a.pedido(a.consulta({horario:"10:30"})))).status, 409);
 });
-test("Estado anterior e autorização são conferidos novamente na transação", async () => {
-  const a = ambiente(), criada = await a.alterar(a.recepcao, a.pedido());
-  await a.alterar(a.medico, { acao: "confirmar", pacienteId: "paciente1", agendamentoId: criada.agendamentoId, statusEsperado: "agendado" });
-  await assert.rejects(a.alterar(a.medico, { acao: "confirmar", pacienteId: "paciente1", agendamentoId: criada.agendamentoId, statusEsperado: "agendado" }), /mudou/);
-  a.documentos.get("profissionais/recepcao").versao++;
-  await assert.rejects(a.alterar(a.recepcao, a.pedido({ pacienteId: "paciente2", horario: "10:30" })), /autorização mudou/);
-});
-test("Conclusão libera o controle ativo e registra auditoria sem prontuário", async () => {
-  const a = ambiente(), criada = await a.alterar(a.recepcao, a.pedido());
-  const c = a.documentos.get("usuarios/paciente1/agendamentos/" + criada.agendamentoId); c.dia = a.datas.hojeBrasil(); c.status = "presente";
-  await a.alterar(a.medico, { acao: "concluir", pacienteId: "paciente1", agendamentoId: criada.agendamentoId, statusEsperado: "presente" });
+
+test("Cancelamento respeita o dono da consulta e libera reserva e controle", async () => {
+  const a = ambiente();
+  const criada = await a.reservar(a.pedido(a.consulta()));
+  const {agendamentoId} = await criada.json();
+  assert.equal((await a.cancelar(a.pedido({agendamentoId}, "paciente2"))).status, 404);
+  assert.equal((await a.cancelar(a.pedido({agendamentoId}))).status, 200);
+  assert.equal(a.documentos.get("usuarios/paciente1/agendamentos/" + agendamentoId).status, "cancelado");
   assert.equal(a.documentos.get("usuarios/paciente1/controleAgendamento/ativo").agendamentoId, null);
-  assert.equal(a.documentos.get("usuarios/paciente1/agendamentos/" + criada.agendamentoId).status, "concluido");
-  assert.equal([...a.documentos].filter(([k]) => k.startsWith("auditoria/")).length, 2);
+  assert.equal((await a.reservar(a.pedido(a.consulta(), "paciente2"))).status, 201);
+});
+
+test("Perfil incompleto bloqueia reserva e uma escala bloqueada continua sendo respeitada", async () => {
+  const a = ambiente();
+  const perfil = a.documentos.get("usuarios/paciente1");
+  a.documentos.set("usuarios/paciente1", {...perfil, telefone:""});
+  assert.equal((await a.reservar(a.pedido(a.consulta()))).status, 403);
+  a.documentos.set("usuarios/paciente1", perfil);
+  const ref = a.regras.configRef(a.unidade, "Dr. Rafael Martins", a.dia);
+  a.documentos.set(ref.path, {ativo: true, horarios:["08:30"], bloqueios:["08:30"], servicos:["Consulta médica"]});
+  assert.equal((await a.reservar(a.pedido(a.consulta()))).status, 409);
+});
+
+test("Disponibilidade respeita horários ocupados da unidade do cidadão", async () => {
+  const a = ambiente();
+  await a.reservar(a.pedido(a.consulta()));
+  const {GET} = a.carregar("app/api/agendamentos/disponibilidade/route.ts");
+  const resposta = await GET(new Request("http://localhost/api/agendamentos/disponibilidade?medico=Dr.%20Rafael%20Martins&dia=" + a.dia, {headers:{Authorization:"Bearer paciente2"}}));
+  assert.equal(resposta.status, 200);
+  assert.deepEqual((await resposta.json()).horariosOcupados, ["08:30"]);
 });

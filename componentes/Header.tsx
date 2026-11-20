@@ -3,13 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../app/firebase";
+import { MenuMovel } from "./Navigation";
 
 export default function Header() {
   const router = useRouter();
+  const caminho = usePathname();
+  const configuracoes = { pathname: "/perfil", query: { secao: "acessibilidade", voltar: caminho } };
 
   const [usuario, setUsuario] = useState<User | null>(null);
   const [carregouAuth, setCarregouAuth] = useState(false);
@@ -40,7 +43,7 @@ export default function Header() {
 
   return (
     <header className="w-full bg-[#0A5C83]">
-      <div className="mx-auto flex min-h-[88px] max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:min-h-[100px] sm:px-8 lg:px-12">
+      <div className="relative mx-auto flex min-h-[88px] max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:min-h-[100px] sm:px-8 lg:px-12">
         {/* LOGO */}
         <Link
           href={usuario ? "/dashboard" : "/"}
@@ -53,13 +56,15 @@ export default function Header() {
             width={1545}
             height={744}
             priority
-            className="h-14 w-auto max-w-[190px] object-contain sm:h-[72px] sm:max-w-[230px]"
+            className="sv-logo-clara h-14 w-auto max-w-[190px] object-contain sm:h-[72px] sm:max-w-[230px]"
           />
+          <Image src="/imagens/logo-saude-vale-mais-escura.png" alt="Saúde Vale+" width={1774} height={887} className="sv-logo-escura h-14 w-auto max-w-[190px] object-contain sm:h-[72px] sm:max-w-[230px]" />
         </Link>
 
         {/* AÇÕES DA CONTA */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <Link href="/perfil?secao=acessibilidade" className="rounded-lg px-2 py-3 text-xs font-bold text-white hover:bg-white/15 sm:text-sm">Configurações</Link>
+          <Link href={configuracoes} className={`rounded-lg px-2 py-3 text-xs font-bold text-white hover:bg-white/15 sm:text-sm ${usuario ? "hidden md:inline-flex" : ""}`}>Configurações</Link>
+          {usuario && <MenuMovel configuracoes={configuracoes} />}
           {!carregouAuth ? (
             <div className="h-10 w-20" aria-label="Carregando conta" />
           ) : usuario ? (

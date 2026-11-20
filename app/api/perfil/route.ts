@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { autenticar } from "@/lib/profissionais/autorizacao";
-import { dadosCadastro, ErroCadastro } from "@/lib/cadastro/validacao";
+import { autenticar } from "@/lib/autorizacao";
+import { dadosCadastro, ErroCadastro, sexoFeminino } from "@/lib/cadastro/validacao";
 import { resolverEndereco } from "@/lib/cadastro/endereco";
 import { corpoCadastro, falhaCadastro } from "@/lib/cadastro/http";
 export const runtime="nodejs";
@@ -17,7 +17,8 @@ export async function POST(request:Request) {
     if (anterior.cadastroVersao===2 && (dados.cpf!==anterior.cpf || dados.dataNascimento!==anterior.dataNascimento)) throw new ErroCadastro("CPF e data de nascimento já cadastrados não podem ser alterados aqui.");
     if (dados.emailResponsavel && dados.emailResponsavel.toLowerCase()===token.email?.toLowerCase()) throw new ErroCadastro("O e-mail do responsável deve ser diferente do e-mail da criança.");
     const endereco=await resolverEndereco(dados);
-    const gravado={...dados,...endereco,uid:token.uid,email:token.email ?? "",cartaoSus:dados.numeroSUS,cadastroVersao:2,perfilAtualizadoEm:FieldValue.serverTimestamp()};
+    const gestacao = !sexoFeminino(dados.sexo) ? {gestanteAtual:false,jaFoiGestante:false,semanasGestacao:null,inicioGestacao:null} : {};
+    const gravado={...dados,...endereco,...gestacao,uid:token.uid,email:token.email ?? "",cartaoSus:dados.numeroSUS,cadastroVersao:2,perfilAtualizadoEm:FieldValue.serverTimestamp()};
     await adminDb.runTransaction(async tx=>{
       const [atual,controle]=await Promise.all([tx.get(ref),tx.get(ref.collection("controleAgendamento").doc("ativo"))]);
       if (controle.data()?.agendamentoId && atual.data()?.unidadeReferencia!==endereco.unidadeReferencia) throw new ErroCadastro("Há uma consulta ativa. Confirme a transferência de UBS com a unidade antes de mudar o endereço.",409);

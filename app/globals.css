@@ -11,7 +11,10 @@ body {
 
 /* Classes próprias preservam os estilos da área do paciente. */
 :root { --font-inter: Inter, Arial, sans-serif; --font-roboto: Roboto, Arial, sans-serif; }
-.sv-public, .sv-profissional { font-family: var(--font-inter); color: #111827; }
+.sv-logo-escura { display: none; }
+html[data-sv-tema="escuro"] .sv-logo-clara { display: none; }
+html[data-sv-tema="escuro"] .sv-logo-escura { display: block; }
+.sv-public { font-family: var(--font-inter); color: #111827; }
 .sv-public { display: flex; min-height: 100dvh; flex-direction: column; }
 .sv-public > main { flex: 1; }
 .sv-container { width: min(100% - 3rem, 1200px); margin-inline: auto; }
@@ -32,7 +35,7 @@ body {
 html[data-essencial="true"] { font-size: 20px; }
 html[data-essencial="true"] .sv-decorative { display: none; }
 html[data-essencial="true"] .sv-public main section > .sv-container { grid-template-columns: 1fr; }
-html[data-essencial="true"] :where(.sv-public, .sv-profissional) :where(p, label, input, select, button, a) { font-size: max(1rem, 18px); }
+html[data-essencial="true"] .sv-public :where(p, label, input, select, button, a) { font-size: max(1rem, 18px); }
 html[data-essencial="true"] .sv-section { padding-block: 2.5rem; }
 @media (max-width: 640px) { .sv-container { width: calc(100% - 2rem); } .sv-section { padding-block: 3rem; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
@@ -48,38 +51,106 @@ body {
 }
 
 /* Preferências do cidadão. Aplicadas a TODAS as páginas da aplicação. */
+/* Grafite neutro, superfícies elevadas e cores de estado legíveis. */
 html[data-sv-tema="escuro"] {
   color-scheme: dark;
+  --sv-fundo: #141516;
+  --sv-superficie: #202224;
+  --sv-suave: #2b2e31;
+  --sv-borda: #42464b;
+  --sv-texto: #eceeef;
+  --sv-secundario: #b9bdc2;
+  --sv-destaque: #9ec9df;
 }
-
-html[data-sv-tema="escuro"] body,
-html[data-sv-tema="escuro"] body>div,
-html[data-sv-tema="escuro"] body .min-h-screen,
-html[data-sv-tema="escuro"] main {
-  background-color: #0b0b0b !important;
-  color: #f8fafc;
+html[data-sv-tema="escuro"] :is(header, footer) {
+  background-color: #1c1e20 !important;
 }
-
-html[data-sv-tema="escuro"] main :is(.bg-white, .bg-slate-50, .bg-gray-50, .bg-sky-50),
-html[data-sv-tema="escuro"] main [class*="bg-[#F"],
-html[data-sv-tema="escuro"] main [class*="bg-[#E"] {
-  background-color: #1b1b1b !important;
+html[data-sv-tema="escuro"] :is(body, body > div, .min-h-screen, main, .sv-public) {
+  background-color: var(--sv-fundo) !important;
+  color: var(--sv-texto);
 }
-
-html[data-sv-tema="escuro"] main :is(.text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900),
-html[data-sv-tema="escuro"] main [class*="text-[#00"],
-html[data-sv-tema="escuro"] main [class*="text-[#11"] {
-  color: #f1f5f9 !important;
+html[data-sv-tema="escuro"] :is(main, nav, header, aside) :is(.bg-white, .bg-slate-50, .bg-gray-50),
+html[data-sv-tema="escuro"] :is(main, nav, aside) [class*="bg-[#F"],
+html[data-sv-tema="escuro"] :is(main, nav, aside) [class*="bg-[#E"],
+html[data-sv-tema="escuro"] nav[class*="bg-[#F"],
+html[data-sv-tema="escuro"] aside.bg-white {
+  background-color: var(--sv-superficie) !important;
 }
-
+html[data-sv-tema="escuro"] :is(main, nav, aside) :is(.bg-sky-50, .bg-sky-100, .bg-blue-50, .bg-slate-100),
+html[data-sv-tema="escuro"] main [class*="bg-[#D"] {
+  background-color: var(--sv-suave) !important;
+}
+html[data-sv-tema="escuro"] :is(main, nav, aside) :is(.text-slate-500, .text-slate-600, .text-gray-500, .text-gray-600) {
+  color: var(--sv-secundario) !important;
+}
+html[data-sv-tema="escuro"] :is(main, nav, aside) :is(.text-slate-700, .text-slate-800, .text-slate-900, .text-gray-700, .text-gray-800, .text-gray-900, .text-black),
+html[data-sv-tema="escuro"] main :is([class*="text-[#11"], [class*="text-[#37"]) {
+  color: var(--sv-texto) !important;
+}
+html[data-sv-tema="escuro"] :is(main, nav, aside) :is([class*="text-[#00"], .text-sky-700, .text-blue-700, .sv-eyebrow),
+html[data-sv-tema="escuro"] .sv-acao,
+html[data-sv-tema="escuro"] .sv-button-outline {
+  color: var(--sv-destaque) !important;
+}
+html[data-sv-tema="escuro"] :is(main, nav, aside) :is([class*="border-slate-"], [class*="border-gray-"], [class*="border-sky-"], [class*="border-[#D"], [class*="border-[#E"]) {
+  border-color: var(--sv-borda) !important;
+}
+html[data-sv-tema="escuro"] .sv-button-outline,
+html[data-sv-tema="escuro"] .sv-acao {
+  background: var(--sv-superficie);
+  border-color: #626970;
+}
+html[data-sv-tema="escuro"] :is(.sv-button-outline, .sv-acao):hover {
+  background: var(--sv-suave);
+}
 html[data-sv-tema="escuro"] main :is(input, textarea, select) {
-  background-color: #222 !important;
-  color: #f8fafc !important;
-  border-color: #93a4bd !important;
+  background-color: #191b1d !important;
+  color: var(--sv-texto) !important;
+  border-color: #626970 !important;
 }
-
 html[data-sv-tema="escuro"] main :is(input, textarea)::placeholder {
-  color: #cbd5e1;
+  color: #a0a5ab;
+}
+html[data-sv-tema="escuro"] main :is(.bg-green-50, .bg-emerald-50) { background-color: #15392e !important; }
+html[data-sv-tema="escuro"] main :is(.text-green-700, .text-green-800, .text-green-900, .text-emerald-700) { color: #95e1b6 !important; }
+html[data-sv-tema="escuro"] main :is(.bg-amber-50, .bg-yellow-50) { background-color: #3a301c !important; }
+html[data-sv-tema="escuro"] main :is(.text-amber-700, .text-amber-800, .text-amber-900) { color: #f3cf87 !important; }
+html[data-sv-tema="escuro"] main .bg-red-50 { background-color: #40242c !important; }
+html[data-sv-tema="escuro"] main :is(.text-red-700, .text-red-800, .text-red-900) { color: #ffb1b6 !important; }
+html[data-sv-tema="escuro"] main .bg-purple-50 { background-color: #2d2544 !important; }
+html[data-sv-tema="escuro"] main :is(.text-purple-700, .text-purple-800, .text-purple-900) { color: #d6b8fa !important; }
+html[data-sv-tema="escuro"] main .bg-pink-50 { background-color: #3b2335 !important; }
+html[data-sv-tema="escuro"] main :is(.text-pink-700, .text-pink-800, .text-pink-900) { color: #f8b4d3 !important; }
+html[data-sv-tema="escuro"] main [class*="bg-white/80"] { background-color: var(--sv-suave) !important; }
+html[data-sv-tema="escuro"] main :is(h1, h2, h3)[class],
+html[data-sv-tema="escuro"] nav a {
+  color: var(--sv-texto) !important;
+}
+html[data-sv-tema="escuro"] :where(a, button, input, select, textarea, summary):focus-visible {
+  outline-color: #8ed3f5;
+}
+html[data-sv-tema="escuro"] main .sv-boas-vindas {
+  background: linear-gradient(115deg, #242a2e, #29383f) !important;
+  border: 1px solid #465258;
+}
+html[data-sv-tema="escuro"] main .sv-resumo-saude {
+  background: #303a3f;
+  border-color: #556269;
+}
+html[data-sv-tema="escuro"] main .sv-agendar-destaque {
+  background-color: #17536b;
+  border-color: #538a9f;
+}
+html[data-sv-tema="escuro"] main .sv-agendar-destaque:hover {
+  background-color: #1b607b;
+}
+/* Estes elementos claros contrastam com os painéis de destaque. */
+html[data-sv-tema="escuro"] main .sv-destaque-claro {
+  background-color: #e8eff2 !important;
+  color: #075572 !important;
+}
+html[data-sv-tema="escuro"] main a.sv-destaque-claro:hover {
+  background-color: #fff !important;
 }
 
 html[data-sv-contraste="alto"] :is(a, button, input, textarea, select):focus-visible {

@@ -10,7 +10,7 @@ import Footer from "@/componentes/Footer";
 import Icone from "@/componentes/publico/Icone";
 import TelaSimples from "@/componentes/simples/TelaSimples";
 import useModoSimples from "@/lib/useModoSimples";
-import { formatarData } from "@/lib/profissionais/datas";
+import { formatarData } from "@/lib/datas";
 import { auth, db } from "../firebase";
 
 type Medicamento = {
@@ -55,7 +55,9 @@ export default function MedicamentosPage() {
             frequencia: texto(d.frequencia), proximaRetirada: texto(d.proximaRetirada),
             status: texto(d.status), observacao: texto(d.observacao), demonstrativo: d.demonstrativo === true,
             unidadeRetirada: texto(d.unidadeRetirada) || texto(d.unidade) || texto(d.unidadeReferencia),
-            profissionalNome: texto(d.profissionalNome) || texto(d.medicoNome) || texto(d.nomeMedico) || texto(d.medico) || "Profissional não informado",
+            profissionalNome: [d.profissionalNome, d.medicoNome, d.nomeMedico, d.medico]
+              .map(valor => texto(valor).trim())
+              .find(Boolean) ?? "",
             dataReceita: dataDoRegistro(d.dataReceita ?? d.dataPrescricao ?? d.criadoEm),
           };
         });
@@ -76,9 +78,17 @@ export default function MedicamentosPage() {
       <div className="px-5 py-5 sm:px-7">
         <div className={"mb-6 flex items-start gap-3 rounded-xl border p-4 " + disponibilidade(m).cor}>
           <span aria-hidden="true" className="text-2xl font-bold">{disponibilidade(m).simbolo}</span>
-          <div><p className="font-bold">{disponibilidade(m).rotulo}</p><p className="mt-1 text-sm">{m.unidadeRetirada || "Unidade de retirada não informada"}</p></div>
+          <div><p className="font-bold">{disponibilidade(m).rotulo}</p><p className="mt-1 text-sm">{m.unidadeRetirada || "Disponibilidade informada pela unidade"}</p></div>
         </div>
-        <div className="flex items-start gap-3"><Icone nome="pessoa" className="mt-1 h-6 w-6 shrink-0 text-[#007DB8]" /><div><p className="text-xs font-semibold text-slate-500">Receitado por</p><p className="mt-1 font-bold text-slate-800">{m.profissionalNome}</p></div></div>
+        <div className="flex items-start gap-3">
+          <Icone nome="pessoa" className="mt-1 h-6 w-6 shrink-0 text-[#007DB8]" />
+          <div>
+            <p className="text-xs font-semibold text-slate-500">Receitado por</p>
+            {m.profissionalNome
+              ? <p className="mt-1 font-bold text-slate-800">{m.profissionalNome}</p>
+              : <p className="mt-1 text-sm font-semibold text-amber-800">Identificação pendente. Confirme com a equipe de saúde.</p>}
+          </div>
+        </div>
         <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
           <div><dt className="text-sm text-slate-500">Quantidade</dt><dd className="mt-1 font-bold">{m.quantidade || "Não informada"}</dd></div>
           <div><dt className="text-sm text-slate-500">Frequência</dt><dd className="mt-1 font-bold">{m.frequencia || "Não informada"}</dd></div>
@@ -92,7 +102,7 @@ export default function MedicamentosPage() {
   </>;
   if (simples) return <TelaSimples titulo="Remédios" icone="medicamento">{conteudo}</TelaSimples>;
   return <div className="flex min-h-screen flex-col bg-[#F5F7FA]"><Header /><Navigation /><main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-    <div className="mb-7 flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-extrabold text-[#005F8F]">Meus medicamentos</h1><Link href="/dashboard" className="sv-button sv-button-outline">← Minha área</Link></div>
+    <div className="mb-7 flex flex-col items-center gap-4 text-center"><h1 className="text-3xl font-extrabold text-[#005F8F]">Meus medicamentos</h1><Link href="/dashboard" className="sv-button sv-button-outline">← Minha área</Link></div>
     {conteudo}
   </main><Footer /></div>;
 }

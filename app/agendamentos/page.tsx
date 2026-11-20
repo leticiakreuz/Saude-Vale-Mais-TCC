@@ -17,6 +17,7 @@ import AgendamentosSimples from "@/componentes/simples/AgendamentosSimples";
 import Header from "../../componentes/Header";
 import Navigation from "../../componentes/Navigation";
 import Footer from "../../componentes/Footer";
+import AjudaCartaoSus from "@/componentes/cadastro/AjudaCartaoSus";
 import { auth, db } from "../firebase";
 
 // ============================================================
@@ -201,7 +202,6 @@ const camposObrigatoriosPerfil: (keyof Perfil)[] = [
     "cpf",
     "telefone",
     "dataNascimento",
-    "cartaoSus",
     "cep",
     "rua",
     "numero",
@@ -1008,17 +1008,17 @@ export default function AgendamentosPage() {
     if (modoSimples) return <AgendamentosSimples usuario={usuario} consultas={agendamentos} carregando={carregando} perfilCompleto={perfilEstaCompleto(perfil)} unidade={perfil.unidadeReferencia} cancelar={cancelarAgendamento} salvando={salvando} erroExterno={erro} mensagemExterna={mensagem} />;
 
     return (
-        <div className="min-h-screen bg-[#F5F7FA]">
+        <div className="flex min-h-screen flex-col bg-[#F5F7FA]">
             <Header />
 
             <Navigation />
 
-            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+            <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
                 {/* ================================================== */}
                 {/* CABEÇALHO */}
                 {/* ================================================== */}
 
-                <div className="mb-7">
+                <div className="mb-7 text-center">
                     <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#007DB8]">
                         Saúde Vale+
                     </p>
@@ -1027,11 +1027,6 @@ export default function AgendamentosPage() {
                         Agendamentos
                     </h1>
 
-                    <p className="mt-2 text-sm text-[#111827]/65 sm:text-base">
-                        Agende consultas, acompanhe seus atendimentos e
-                        consulte seu histórico. Sua UBS é definida
-                        automaticamente pelo cadastro.
-                    </p>
                 </div>
 
                 {/* ================================================== */}
@@ -1135,7 +1130,7 @@ export default function AgendamentosPage() {
                                         htmlFor={`perfil-${campo}`}
                                         className={labelClasse}
                                     >
-                                        {titulo} *
+                                        {titulo}{campo === "cartaoSus" ? " (opcional)" : " *"}
                                     </label>
 
                                     <input
@@ -1166,6 +1161,7 @@ export default function AgendamentosPage() {
                                                 : undefined
                                         }
                                     />
+                                    {campo === "cartaoSus" && <AjudaCartaoSus />}
                                 </div>
                             ))}
 
@@ -1289,7 +1285,7 @@ export default function AgendamentosPage() {
                                     e cancele quando necessário.
                                 </span>
 
-                                <span className="mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#005F8F]">
+                                <span className="sv-destaque-claro mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#005F8F]">
                                     {agendamentosAtivos.length} ativa(s)
                                     {" · "}Acessar →
                                 </span>
@@ -1304,10 +1300,10 @@ export default function AgendamentosPage() {
                                     setMensagem("");
                                     setEtapa("atendimento");
                                 }}
-                                className="rounded-2xl border-2 border-[#007DB8] bg-[#007DB8] p-6 text-left transition hover:-translate-y-0.5 hover:bg-[#005F8F] hover:shadow-md focus:outline-none focus:ring-4 focus:ring-[#8ED3F5]/60"
+                                className="sv-agendar-destaque rounded-2xl border-2 border-[#007DB8] bg-[#007DB8] p-6 text-left transition hover:-translate-y-0.5 hover:bg-[#005F8F] hover:shadow-md focus:outline-none focus:ring-4 focus:ring-[#8ED3F5]/60"
                             >
                                 <span
-                                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl text-[#005F8F]"
+                                    className="sv-destaque-claro flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl text-[#005F8F]"
                                     aria-hidden="true"
                                 >
                                     ＋
@@ -1322,7 +1318,7 @@ export default function AgendamentosPage() {
                                     a data e o horário.
                                 </span>
 
-                                <span className="mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#005F8F]">
+                                <span className="sv-destaque-claro mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#005F8F]">
                                     Começar agendamento →
                                 </span>
                             </button>
@@ -1538,12 +1534,6 @@ export default function AgendamentosPage() {
                                     )}
                                 </div>
 
-                                <p className="mt-3 text-xs leading-5 text-[#6B7280]">
-                                    Os profissionais são exemplos
-                                    demonstrativos. A lista oficial
-                                    deverá ser cadastrada pela
-                                    unidade de saúde.
-                                </p>
                             </div>
 
                             <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">

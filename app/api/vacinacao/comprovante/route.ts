@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
 
         const perfil: PerfilVacinal = {
             nome: String(dados.nome ?? usuario.name ?? ""),
+            sexo: String(dados.sexo ?? ""),
             dataNascimento: String(dados.dataNascimento ?? ""),
             gestanteAtual: dados.gestanteAtual === true,
             jaFoiGestante: dados.jaFoiGestante === true,

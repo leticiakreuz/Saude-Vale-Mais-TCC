@@ -1,5 +1,7 @@
 # Revisão da interface — 02/11/2026
 
+Este documento registra a revisão daquela data. Em 20/11/2026, toda a área profissional foi removida, incluindo acessos, painéis, APIs e scripts de administração. As referências abaixo a esse módulo são históricas; consulte [o estado atual do projeto](CONTINUACAO-TCC.md).
+
 Os comentários visuais da usuária foram incorporados ao projeto local.
 
 - Administração: áreas independentes para histórico de atendimentos, equipe e permissões, escalas e funcionários por UBS. O diretório permite selecionar uma UBS ou todas; somente informações profissionais mínimas são retornadas. Alterações de equipe continuam restritas à unidade do administrador.

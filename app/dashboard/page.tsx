@@ -22,7 +22,6 @@ type IconName =
   | "calendar"
   | "pill"
   | "syringe"
-  | "hospital"
   | "user"
   | "arrow"
   | "clock"
@@ -41,39 +40,24 @@ type AgendamentoResumo = {
 const servicos = [
   {
     titulo: "Agendamentos",
-    descricao: "Marque seus atendimentos e acompanhe suas consultas.",
     href: "/agendamentos",
     icone: "calendar" as IconName,
     fundo: "bg-[#E5F5FC]",
     cor: "text-[#007DB8]",
-    etiqueta: "Consultas",
   },
   {
     titulo: "Medicamentos",
-    descricao: "Consulte a disponibilidade dos medicamentos prescritos.",
     href: "/medicamentos",
     icone: "pill" as IconName,
     fundo: "bg-[#E8F8EE]",
     cor: "text-[#168447]",
-    etiqueta: "Prescrições",
   },
   {
     titulo: "Vacinação",
-    descricao: "Acesse sua carteira e acompanhe seus registros.",
     href: "/vacinacao",
     icone: "syringe" as IconName,
     fundo: "bg-[#EAF0FF]",
     cor: "text-[#4168B5]",
-    etiqueta: "Carteira de vacinação",
-  },
-  {
-    titulo: "Sobre o SUS",
-    descricao: "Conheça os serviços e as informações do sistema público.",
-    href: "/sobre-sus",
-    icone: "hospital" as IconName,
-    fundo: "bg-[#F0EAFE]",
-    cor: "text-[#7251A8]",
-    etiqueta: "Informações",
   },
 ];
 
@@ -121,15 +105,6 @@ function Icon({
           <path d="m18 2 4 4M17 7l-3-3M3 21l6-6" />
           <path d="m14 4 6 6M5 13l6 6M4 14l6-6 6 6-6 6-6-6Z" />
           <path d="m2 22 3-3" />
-        </svg>
-      );
-
-    case "hospital":
-      return (
-        <svg {...propriedades}>
-          <path d="M3 21V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v16" />
-          <path d="M9 21v-5h6v5M9 8h6M12 5v6" />
-          <path d="M3 21h18" />
         </svg>
       );
 
@@ -350,11 +325,14 @@ export default function DashboardPage() {
 
       <main className="mx-auto max-w-7xl px-4 pb-12 pt-7 sm:px-6 sm:pt-9 lg:px-8 lg:pb-16">
         {/* BOAS-VINDAS */}
-        <section className="relative overflow-hidden rounded-[28px] bg-[#005F8F] shadow-sm">
-          <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#007DB8]/70" />
-          <div className="pointer-events-none absolute -bottom-32 right-40 h-64 w-64 rounded-full border-[36px] border-white/5" />
+        <section className="sv-boas-vindas relative isolate overflow-hidden rounded-[28px] bg-[linear-gradient(115deg,#005F8F_20%,#006B9C_70%,#007DB8_100%)] shadow-sm">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none overflow-hidden">
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap font-[family-name:var(--font-inter)] text-[clamp(5rem,26vw,18rem)] font-black leading-none tracking-[-0.06em] text-white/[0.045]">
+              SUS
+            </span>
+          </div>
 
-          <div className="relative grid items-center gap-8 p-6 sm:p-9 lg:grid-cols-[1fr_auto] lg:p-11">
+          <div className="relative grid items-center gap-8 p-6 text-center sm:p-9 lg:grid-cols-[1fr_auto] lg:p-11">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
@@ -371,16 +349,16 @@ export default function DashboardPage() {
                 Olá, {carregando ? "..." : primeiroNome}!
               </h1>
 
-              <p className="mt-4 max-w-xl font-[family-name:var(--font-roboto)] text-sm leading-6 text-white/80 sm:text-base sm:leading-7">
+              <p className="mx-auto mt-4 max-w-xl font-[family-name:var(--font-roboto)] text-sm leading-6 text-white/80 sm:text-base sm:leading-7">
                 Sua saúde merece atenção. Acesse seus serviços, acompanhe
                 seus atendimentos e encontre as principais informações
                 em um só lugar.
               </p>
 
-              <div className="mt-7 flex flex-wrap gap-3">
+              <div className="mt-7 flex flex-wrap justify-center gap-3">
                 <Link
                   href="/agendamentos"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-[family-name:var(--font-inter)] text-sm font-bold text-[#005F8F] shadow-sm transition hover:bg-[#EAF7FC]"
+                  className="sv-destaque-claro inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-[family-name:var(--font-inter)] text-sm font-bold text-[#005F8F] shadow-sm transition hover:bg-[#EAF7FC]"
                 >
                   <Icon name="calendar" className="h-5 w-5" />
                   Agendar atendimento
@@ -396,9 +374,9 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="hidden min-w-[230px] lg:block">
-              <div className="rounded-3xl border border-white/20 bg-white/10 p-6 backdrop-blur-sm">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#007DB8]">
+            <div className="hidden min-w-[230px] text-left lg:block">
+              <div className="sv-resumo-saude rounded-3xl border border-white/20 bg-white/10 p-6 backdrop-blur-sm">
+                <div className="sv-destaque-claro flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#007DB8]">
                   <Icon name="plus" className="h-9 w-9" />
                 </div>
 
@@ -423,7 +401,7 @@ export default function DashboardPage() {
 
         {/* SERVIÇOS */}
         <section className="mt-10 sm:mt-12">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div className="text-center">
             <div>
               <p className="font-[family-name:var(--font-inter)] text-xs font-bold uppercase tracking-[0.16em] text-[#007DB8]">
                 Acesso rápido
@@ -439,12 +417,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid gap-3 min-[560px]:grid-cols-3 sm:gap-4">
             {servicos.map((servico) => (
               <Link
                 key={servico.titulo}
                 href={servico.href}
-                className="group flex min-h-[245px] flex-col rounded-3xl border border-[#E1E6EB] bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#8ED3F5] hover:shadow-lg sm:p-6"
+                className="group flex min-h-[180px] min-w-0 flex-col rounded-3xl border border-[#E1E6EB] bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#8ED3F5] hover:shadow-lg sm:p-5 lg:min-h-[200px] lg:p-6"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div
@@ -453,21 +431,14 @@ export default function DashboardPage() {
                     <Icon name={servico.icone} className="h-6 w-6" />
                   </div>
 
-                  <span className="rounded-full bg-[#F5F7FA] px-2.5 py-1 font-[family-name:var(--font-inter)] text-[10px] font-semibold text-[#111827]/55">
-                    {servico.etiqueta}
-                  </span>
                 </div>
 
-                <h3 className="mt-5 font-[family-name:var(--font-inter)] text-lg font-extrabold text-[#005F8F]">
+                <h3 className="mb-4 mt-4 font-[family-name:var(--font-inter)] text-base font-extrabold text-[#005F8F] lg:text-lg">
                   {servico.titulo}
                 </h3>
 
-                <p className="mt-2 flex-1 font-[family-name:var(--font-roboto)] text-sm leading-6 text-[#111827]/60">
-                  {servico.descricao}
-                </p>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#EEF1F4] pt-4">
-                  <span className="font-[family-name:var(--font-inter)] text-sm font-bold text-[#007DB8]">
+                <div className="mt-auto flex items-center justify-between gap-2 border-t border-[#EEF1F4] pt-3">
+                  <span className="font-[family-name:var(--font-inter)] text-xs font-bold text-[#007DB8] lg:text-sm">
                     Acessar serviço
                   </span>
 
