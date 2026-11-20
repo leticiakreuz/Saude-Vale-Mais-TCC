@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { ErroCadastro } from "./validacao";
-import { ErroAcesso } from "@/lib/profissionais/autorizacao";
+import { ErroAcesso } from "@/lib/autorizacao";
 const tentativas = new Map<string,{quantidade:number;ate:number}>();
 export async function corpoCadastro(request:Request, limitar=false):Promise<Record<string,unknown>> {
   const origin = request.headers.get("origin");

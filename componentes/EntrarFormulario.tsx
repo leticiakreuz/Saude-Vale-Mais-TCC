@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,7 @@ import {
 import { auth } from "@/app/firebase";
 
 
-export default function EntrarFormulario({ profissional = false }: { profissional?: boolean }) {
+export default function EntrarFormulario() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -21,6 +21,8 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
   const [recuperando, setRecuperando] = useState(false);
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
+  const [pronto, setPronto] = useState(false);
+  useEffect(() => setPronto(true), []);
 
   async function handleEntrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,7 +36,6 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
       const resposta = await fetch("/api/acesso", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const acesso = await resposta.json();
       if (!resposta.ok) { setErro(acesso.erro ?? "Não foi possível verificar seu acesso."); return; }
-      if (profissional && ["/dashboard", "/completar-cadastro"].includes(acesso.destino)) { setErro("Sua conta é de cidadão. O acesso profissional precisa ser autorizado pela administração da UBS."); return; }
       router.push(acesso.destino);
     } catch (error: unknown) {
       console.error("Erro ao entrar:", error);
@@ -125,11 +126,11 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
       {/* CARTÃO PRINCIPAL */}
       <div className="relative z-10 my-14 grid w-full max-w-[1090px] overflow-hidden rounded-[24px] bg-white shadow-2xl shadow-[#003B5C]/20 lg:my-8 lg:min-h-[650px] lg:grid-cols-[0.95fr_1.05fr]">
         {/* LATERAL AZUL */}
-        <section className="relative flex flex-col bg-gradient-to-br from-[#0A5C83] via-[#0A5C83] to-[#0A5C83] px-6 py-8 text-white sm:px-10 sm:py-10 lg:px-11 lg:py-8">
+        <section className="relative flex flex-col bg-gradient-to-br from-[#0A5C83] via-[#0A5C83] to-[#0A5C83] px-6 text-white sm:px-10 lg:px-11 lg:py-8 py-4">
           {/* LOGO ORIGINAL CENTRALIZADA */}
           <Link
             href="/"
-            className="mb-8 flex w-full justify-center"
+            className="flex w-full justify-center lg:mb-8"
           >
             <Image
               src="/imagens/logo-saude-vale-mais-1.png"
@@ -137,27 +138,27 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
               width={220}
               height={90}
               priority
-              className="h-auto w-44 object-contain sm:w-48"
+              className="h-auto object-contain w-36 sm:w-40 lg:w-48"
             />
           </Link>
 
           {/* TEXTO */}
-          <div className="mb-6 text-center">
+          <div className="mb-6 text-center hidden lg:block">
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8ED3F5]">
               Saúde Vale+
             </p>
 
-            <h1 className="mx-auto max-w-md text-[30px] font-bold leading-tight tracking-tight sm:text-[35px]">
+            <p className="mx-auto max-w-md text-[30px] font-bold leading-tight tracking-tight sm:text-[35px]">
               Que bom ter você de volta!
-            </h1>
+            </p>
 
             <p className="mx-auto mt-3 max-w-md text-[15px] leading-6 text-white/95 sm:text-base">
-              {profissional ? "Entre com sua conta profissional para acessar as ferramentas da sua UBS." : "Entre na sua conta e fique mais perto dos serviços de saúde pública. Estamos aqui para facilitar o seu cuidado."}
+              Entre na sua conta e fique mais perto dos serviços de saúde pública. Estamos aqui para facilitar o seu cuidado.
             </p>
           </div>
 
           {/* IMAGEM */}
-          <div className="relative mt-1 h-[230px] w-full overflow-hidden rounded-2xl shadow-lg sm:h-[300px] lg:h-[300px]">
+          <div className="relative mt-1 h-[230px] w-full overflow-hidden rounded-2xl shadow-lg sm:h-[300px] hidden lg:block">
             <Image
               src="/imagens/blumenau-fundo.png"
               alt="Paisagem de Blumenau"
@@ -169,7 +170,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
             <div className="absolute inset-0 bg-gradient-to-t from-[#003B5C]/25 via-transparent to-transparent" />
           </div>
 
-          <p className="mt-6 text-center text-xs text-white/75">
+          <p className="mt-6 text-center text-xs text-white/75 hidden lg:block">
             Saúde Vale+ — Saúde mais perto de você.
           </p>
         </section>
@@ -177,21 +178,21 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
         {/* FORMULÁRIO BRANCO */}
         <section className="flex items-center justify-center bg-white px-6 py-10 sm:px-10 lg:px-12">
           <div className="w-full max-w-[455px]">
-            <div className="mb-7">
+            <div className="mb-7 text-center">
               <p className="mb-1.5 text-xs font-extrabold uppercase tracking-[0.2em] text-[#007DB8]">
-                {profissional ? "Área do profissional" : "Área do cidadão"}
+                Área do cidadão
               </p>
 
-              <h2 className="text-[32px] font-bold leading-tight tracking-tight text-[#073B60]">
+              <h1 className="text-[32px] font-bold leading-tight tracking-tight text-[#073B60]">
                 Entrar na sua conta
-              </h2>
+              </h1>
 
               <p className="mt-2 text-sm leading-6 text-[#7186A3]">
-                {profissional ? "Informe os dados da conta autorizada pela sua UBS." : "Informe seus dados para acessar sua área do cidadão."}
+                Informe seus dados para acessar sua área do cidadão.
               </p>
             </div>
 
-            <form onSubmit={handleEntrar} className="space-y-5">
+            <form method="post" onSubmit={handleEntrar} className="space-y-5">
               {/* E-MAIL */}
               <div>
                 <label
@@ -208,6 +209,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
                   autoComplete="email"
                   placeholder="Digite seu e-mail"
                   value={email}
+                  disabled={!pronto || carregando}
                   onChange={(event) => setEmail(event.target.value)}
                   required
                   className="h-[46px] w-full rounded-md border border-[#D1DCE8] bg-white px-3.5 text-sm text-[#173F62] outline-none transition placeholder:text-[#8195B0] focus:border-[#007DB8] focus:ring-2 focus:ring-[#007DB8]/15"
@@ -231,6 +233,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
                     autoComplete="current-password"
                     placeholder="Digite sua senha"
                     value={senha}
+                    disabled={!pronto || carregando}
                     onChange={(event) => setSenha(event.target.value)}
                     required
                     className="h-[46px] w-full rounded-md border border-[#D1DCE8] bg-white px-3.5 pr-20 text-sm text-[#173F62] outline-none transition placeholder:text-[#8195B0] focus:border-[#007DB8] focus:ring-2 focus:ring-[#007DB8]/15"
@@ -280,7 +283,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
               {/* BOTÃO ENTRAR */}
               <button
                 type="submit"
-                disabled={carregando}
+                disabled={!pronto || carregando}
                 className="flex h-[46px] w-full items-center justify-center rounded-md bg-gradient-to-r from-[#0787BE] to-[#007DB8] px-4 text-sm font-bold text-white shadow-sm transition hover:from-[#006FA6] hover:to-[#005F8F] focus:outline-none focus:ring-2 focus:ring-[#007DB8] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {carregando ? "Entrando..." : "Entrar"}
@@ -288,7 +291,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
             </form>
 
             {/* LINK PARA CADASTRO */}
-            {profissional ? <p className="mt-6 text-center text-sm text-[#7186A3]">Seu acesso é autorizado pela administração da UBS. <Link href="/login" className="font-bold text-[#007DB8] hover:underline">Sou cidadão</Link></p> : <p className="mt-6 text-center text-sm text-[#7186A3]">
+            <p className="mt-6 text-center text-sm text-[#7186A3]">
               Ainda não possui uma conta?{" "}
               <Link
                 href="/cadastro"
@@ -296,7 +299,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
               >
                 Criar conta
               </Link>
-            </p>}
+            </p>
 
             {/* SEGURANÇA */}
             <div className="mt-8 flex items-start justify-center gap-2 text-center">
@@ -305,7 +308,7 @@ export default function EntrarFormulario({ profissional = false }: { profissiona
               </span>
 
               <p className="max-w-sm text-xs leading-5 text-[#8195B0]">
-                {profissional ? "As ferramentas disponíveis dependem da sua função e das permissões da sua conta." : "Acesse sua conta para consultar os serviços disponibilizados pelo Saúde Vale+."}
+                Acesse sua conta para consultar os serviços disponibilizados pelo Saúde Vale+.
               </p>
             </div>
           </div>

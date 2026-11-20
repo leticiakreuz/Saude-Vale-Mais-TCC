@@ -1,13 +1,12 @@
 import { createHash } from "node:crypto";
 import type { Transaction, DocumentData } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { ErroAcesso } from "./autorizacao";
-import { dataAgendavel, hojeBrasil } from "./datas";
-import type { Cargo } from "./modelos";
+import { ErroAcesso } from "@/lib/autorizacao";
+import { dataAgendavel, hojeBrasil } from "@/lib/datas";
 export const HORARIOS = { Manhã: ["07:30", "08:30", "10:30", "11:30"], Tarde: ["13:30", "14:30", "16:00"] };
 export const LEGADOS: Record<string, string[]> = { "Clínico geral": ["Dr. Rafael Martins", "Dra. Juliana Costa"], Pediatra: ["Dra. Mariana Alves", "Dr. Felipe Rocha"], Dentista: ["Dra. Camila Souza", "Dr. Bruno Lima"] };
 export const SERVICOS: Record<string, string[]> = { Manhã: ["Consulta médica", "Pediatria", "Odontologia", "Consulta de retorno", "Renovação de receita"], Tarde: ["Odontologia", "Renovação de receita"] };
-export const SERVICOS_CARGO: Record<string, Cargo[]> = { "Consulta médica": ["medico"], Pediatria: ["medico"], "Consulta de retorno": ["medico"], "Renovação de receita": ["medico"], Odontologia: ["odontologia"], "Atendimento de enfermagem": ["enfermagem"] };
+export const SERVICOS_CARGO: Record<string, string[]> = { "Consulta médica": ["medico"], Pediatria: ["medico"], "Consulta de retorno": ["medico"], "Renovação de receita": ["medico"], Odontologia: ["odontologia"], "Atendimento de enfermagem": ["enfermagem"] };
 export const chave = (...partes: string[]) => createHash("sha256").update(JSON.stringify(partes)).digest("hex");
 export const configRef = (unidade: string, nome: string, dia: string) => adminDb.collection("escalas").doc(chave(unidade, nome, dia));
 export const vinculoRef = (unidade: string, nome: string) => adminDb.collection("vinculosAgenda").doc(chave(unidade, nome));
@@ -37,11 +36,4 @@ export async function validarOferta(tx: Transaction, unidade: string, nome: stri
   if (definicao.exists && definicao.data()?.ativo !== true) throw new ErroAcesso("Tipo de atendimento inativo.", 409);
   if (profissional?.exists && (!Array.isArray(cargos) || !cargos.includes(profissional.data()?.cargo))) throw new ErroAcesso("Tipo de atendimento incompatível com o profissional.", 400);
   if (!grade(config.data(), nome, servico).some(h => h.horario === horario && !h.bloqueado)) throw new ErroAcesso("Horário fora da escala ou bloqueado.", 409);
-}
-export const TERMINAIS = ["cancelado", "concluido", "concluído", "finalizado", "falta"];
-export function proximoStatus(status: string, acao: string, cargo: Cargo) {
-  const transicoes: Record<string, Record<string, string>> = { agendado: { confirmar: "confirmado", presente: "presente", falta: "falta", cancelar: "cancelado" }, confirmado: { presente: "presente", falta: "falta", cancelar: "cancelado" }, presente: { concluir: "concluido" } };
-  const novo = transicoes[status]?.[acao];
-  if (!novo || (cargo === "recepcao" && acao === "concluir") || (cargo !== "recepcao" && acao === "cancelar")) throw new ErroAcesso("Essa alteração não é permitida para a situação atual da consulta.", 409);
-  return novo;
 }

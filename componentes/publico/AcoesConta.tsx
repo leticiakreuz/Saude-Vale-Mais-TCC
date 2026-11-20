@@ -18,7 +18,6 @@ export default function AcoesConta({ login }: { login: string }) {
   useEffect(() => onAuthStateChanged(auth, usuario => setConectado(Boolean(usuario))), []);
 
   return <div className="flex items-center gap-2 sm:gap-3">
-    <Link href="/profissional" className="hidden rounded-lg border border-white/60 px-3 py-3 text-sm font-bold hover:bg-white/15 lg:inline-flex">Sou profissional</Link>
     {conectado ? <>
       <Link href="/acesso" className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#005F8F] hover:bg-sky-50">Minha área</Link>
       <details className="relative lg:hidden">

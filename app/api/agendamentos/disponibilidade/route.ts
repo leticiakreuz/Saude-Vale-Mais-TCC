@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { configRef, grade, HORARIOS, vinculoRef } from "@/lib/profissionais/agendaRegras";
-import { dataAgendavel } from "@/lib/profissionais/datas";
+import { configRef, grade, HORARIOS, vinculoRef } from "@/lib/agendamentos/agendaRegras";
+import { dataAgendavel } from "@/lib/datas";
 import { cadastroCompleto } from "@/lib/cadastro/validacao";
 
 export const runtime = "nodejs";

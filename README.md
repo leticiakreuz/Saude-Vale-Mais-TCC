@@ -2,7 +2,7 @@
 
 Sistema acadêmico de acesso e gestão de serviços de saúde pública desenvolvido como TCC. Next.js 16, React, TypeScript, Tailwind CSS e Firebase.
 
-Inclui a área do paciente e cinco painéis profissionais protegidos por cargo e UBS: medicina, enfermagem, odontologia, recepção e administração.
+Inclui cadastro, perfil, agendamentos, medicamentos e vacinação na área do cidadão, além das páginas públicas sobre o SUS e instalação do aplicativo.
 
 Veja o guia completo em [docs/CONTINUACAO-TCC.md](docs/CONTINUACAO-TCC.md), com arquivos alterados, configuração, comandos PowerShell, segurança, checklist e preparação para GitHub/Vercel.
 

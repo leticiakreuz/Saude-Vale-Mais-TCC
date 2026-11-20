@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { conectar } from "./firebase-admin-local.mjs";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { getFirestore, doc, getDoc, terminate } from "firebase/firestore";
+import { getFirestore, doc, getDoc, getDocFromServer, updateDoc, setDoc, terminate } from "firebase/firestore";
 const { auth, db } = conectar(), base = process.env.SAUDE_VALE_TEST_URL ?? "http://127.0.0.1:3100";
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base)) throw new Error("Use a prévia local.");
 const sufixo = Date.now().toString(36), email = "svqa-cadastro-" + sufixo + "@example.invalid", senha = randomBytes(20).toString("base64url") + "aA1!";
@@ -25,6 +25,16 @@ try {
   const encontrado = await pedido("/api/endereco", dados, 200);
   assert.equal(encontrado.unidadeReferencia, "USF HEINZ SCHRADER - CENTRO");
   console.log("OK: consulta aceita Blumenau e recusa CEP de outro município");
+  for (const [cep,ubs] of [["89035300","USF MARILENE G. DE AGUIAR - ESC. AGRICOLA"],["89022000","USF IRMA MARTA E. KUNZMANN - GARCIA"],["89065300","USF DR DIOGO VERGARA - BADENFURT"]]) {
+    const postal=await pedido("/api/endereco",{cep},200);
+    const territorial=await pedido("/api/endereco",{...postal,numero:"100"},200);
+    assert.equal(territorial.unidadeReferencia,ubs);
+  }
+  const dois=await pedido("/api/endereco",{cep:"89052000"},200);
+  const semTrecho=await pedido("/api/endereco",{...dois,numero:"100"},422);
+  assert.match(semTrecho.erro,/CEP é de Blumenau/);
+  assert.equal((await pedido("/api/endereco",{...dois,numero:"2000"},200)).unidadeReferencia,"ESF ORLANDO MARGARIDA");
+  console.log("OK: CEPs de bairros diferentes vinculam a UBS; trecho ausente tem erro territorial específico");
 
   await pedido("/api/cadastro", { ...dados, email, senha, confirmarSenha:senha, cargo:"administracao", unidadeReferencia:"FORJADA", cadastroVersao:2 }, 201);
   const usuario = await auth.getUserByEmail(email); uid = usuario.uid;
@@ -46,13 +56,41 @@ try {
   assert.equal((await pedido("/api/acesso", {}, 200, token)).destino, "/completar-cadastro");
   console.log("OK: pular campos ou informar endereço fora de Blumenau não conclui o perfil");
 
-  await pedido("/api/perfil", { ...dados, uid:"outro", unidadeReferencia:"FORJADA" }, 200, token);
+  const semCns = {...dados,numeroSUS:"",sexo:"Masculino"};
+  await pedido("/api/perfil", { ...semCns, uid:"outro", unidadeReferencia:"FORJADA" }, 200, token);
   const completo = (await db.collection("usuarios").doc(uid).get()).data();
   assert.equal(completo.cadastroVersao, 2); assert.equal(completo.unidadeReferencia, encontrado.unidadeReferencia); assert.equal(completo.uid, uid);
+  assert.equal(completo.numeroSUS, ""); assert.equal(completo.cartaoSus, "");
   assert.equal((await pedido("/api/acesso", {}, 200, token)).destino, "/dashboard");
   assert.equal((await getDoc(doc(webDb, "usuarios", uid, "medicamentos", "teste"))).exists(), false);
   await pedido("/api/perfil", { ...dados, dataNascimento:"1991-01-01" }, 400, token);
   console.log("OK: concluir os dados vincula a UBS e libera serviços; identidade já validada permanece fixa");
+
+  const proprio = doc(webDb,"usuarios",uid);
+  const negado = e => e.code === "permission-denied";
+  await assert.rejects(updateDoc(proprio,{gestanteAtual:true}),negado);
+  await assert.rejects(updateDoc(proprio,{sexo:"Feminino"}),negado);
+  await assert.rejects(updateDoc(proprio,{gestanteAtual:"sim"}),negado);
+  await assert.rejects(updateDoc(proprio,{gestanteAtual:false,nome:"X".repeat(200)}),negado);
+  await assert.rejects(updateDoc(proprio,{uid:"outra-pessoa"}),negado);
+  await assert.rejects(updateDoc(proprio,{cargo:"administracao"}),negado);
+  await assert.rejects(updateDoc(proprio,{criadoEm:new Date()}),negado);
+  await assert.rejects(getDocFromServer(doc(webDb,"usuarios","svqa-nao-pertence-a-esta-conta")),negado);
+  await assert.rejects(setDoc(doc(webDb,"usuarios",uid,"vacinacao","registro-forjado"),{vacina:"teste"}),negado);
+  console.log("OK: regras bloqueiam gestação masculina, alteração direta de sexo/identidade, campos extras, tipos incorretos e acesso a terceiros");
+
+  await pedido("/api/perfil",{sexo:"Feminino"},200,token);
+  await updateDoc(proprio,{gestanteAtual:true,jaFoiGestante:false,semanasGestacao:5,inicioGestacao:new Date().toISOString().slice(0,10)});
+  assert.equal((await getDocFromServer(proprio)).data().gestanteAtual,true);
+  await pedido("/api/perfil",{sexo:"Masculino"},200,token);
+  assert.equal((await getDocFromServer(proprio)).data().gestanteAtual,false);
+  await pedido("/api/perfil",{numeroSUS:dados.numeroSUS},200,token);
+  assert.equal((await getDocFromServer(proprio)).data().numeroSUS,dados.numeroSUS);
+  await pedido("/api/perfil",{numeroSUS:""},200,token);
+  const opcional = (await getDocFromServer(proprio)).data();
+  assert.equal(opcional.numeroSUS,""); assert.equal(opcional.cartaoSus,"");
+  assert.equal((await getDocFromServer(doc(webDb,"usuarios",uid,"medicamentos","teste"))).exists(),false);
+  console.log("OK: CNS pode ser adicionado e removido depois; gestação feminina é aceita e mudança de sexo desativa seus marcadores");
 } finally {
   if (!uid) { try { uid = (await auth.getUserByEmail(email)).uid; } catch {} }
   if (webAuth) await signOut(webAuth).catch(() => {});

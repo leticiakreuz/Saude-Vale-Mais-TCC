@@ -6,8 +6,9 @@ import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/app/firebase";
 import { dadosCadastro, idadeCadastro, type DadosCadastro } from "@/lib/cadastro/validacao";
+import AjudaCartaoSus from "./AjudaCartaoSus";
 
-const vazio: DadosCadastro = { nome:"", cpf:"", telefone:"", dataNascimento:"", numeroSUS:"", emailResponsavel:"", cep:"", rua:"", numero:"", bairro:"", cidade:"Blumenau", uf:"SC" };
+const vazio: DadosCadastro = { nome:"", cpf:"", telefone:"", dataNascimento:"", sexo:"", numeroSUS:"", emailResponsavel:"", cep:"", rua:"", numero:"", bairro:"", cidade:"Blumenau", uf:"SC" };
 const campo = "mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900";
 
 export default function FormularioCadastro() {
@@ -19,6 +20,7 @@ export default function FormularioCadastro() {
   const [unidade, setUnidade] = useState("");
   const [consultando, setConsultando] = useState(false);
   const [consultandoCep, setConsultandoCep] = useState(false);
+  const [cepConfirmado, setCepConfirmado] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [identidadeFixa, setIdentidadeFixa] = useState(false);
@@ -49,6 +51,7 @@ export default function FormularioCadastro() {
     if (["cep", "rua", "numero", "bairro"].includes(chave)) { setUnidade(""); setErroEndereco(""); }
     if (chave === "cep") {
       cepVersao.current++;
+      setCepConfirmado("");
       setConsultandoCep(false);
       setDados(d => ({ ...d, cep: valor, rua:"", bairro:"", cidade:"Blumenau", uf:"SC" }));
     }
@@ -62,9 +65,12 @@ export default function FormularioCadastro() {
       const r = await fetch("/api/endereco", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ cep:valor }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.erro);
-      if (versao === cepVersao.current) setDados(a => ({ ...a, cep:d.cep, rua:d.rua, bairro:d.bairro, cidade:d.cidade, uf:d.uf }));
+      if (versao === cepVersao.current) {
+        setDados(a => ({ ...a, cep:d.cep, rua:d.rua, bairro:d.bairro, cidade:d.cidade, uf:d.uf }));
+        setCepConfirmado(valor);
+      }
     } catch (e) {
-      if (versao === cepVersao.current) setErroEndereco(e instanceof Error ? e.message : "Não foi possível consultar o CEP.");
+      if (versao === cepVersao.current) { setCepConfirmado(""); setErroEndereco(e instanceof Error ? e.message : "Não foi possível consultar o CEP."); }
     } finally {
       if (versao === cepVersao.current) setConsultandoCep(false);
     }
@@ -79,8 +85,9 @@ export default function FormularioCadastro() {
       try {
         const r = await fetch("/api/endereco", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(dados), signal:controle.signal });
         const d = await r.json();
+        if (r.status === 422 && !controle.signal.aborted) setCepConfirmado(dados.cep);
         if (!r.ok) throw new Error(d.erro);
-        if (!controle.signal.aborted) setUnidade(d.unidadeReferencia);
+        if (!controle.signal.aborted) { setUnidade(d.unidadeReferencia); setCepConfirmado(dados.cep); }
       } catch (e) {
         if (!controle.signal.aborted) setErroEndereco(e instanceof Error ? e.message : "Não foi possível identificar sua UBS.");
       } finally {
@@ -118,24 +125,25 @@ export default function FormularioCadastro() {
   if (carregando) return <p role="status">Carregando seu cadastro…</p>;
   return <form method="post" onSubmit={enviar} className="space-y-5">
     <fieldset disabled={salvando} className="space-y-5">
-      <p className="text-sm text-slate-600">Todos os campos exibidos são obrigatórios. Etapa {etapa + 1} de 2.</p>
+      <p className="text-sm text-slate-600">Preencha os campos obrigatórios. Os opcionais estão identificados. Etapa {etapa + 1} de 2.</p>
       <h2 className="text-xl font-bold text-[#005F8F]">{etapa === 0 ? "Seus dados" : "Seu endereço e sua UBS"}</h2>
       {etapa === 0 && <div className="grid gap-5 sm:grid-cols-2">
         {input("nome", "Nome completo")}{input("cpf", "CPF", "text", 14)}
         {input("dataNascimento", "Data de nascimento", "date")}{input("telefone", "Telefone com DDD", "tel", 20)}
-        {input("numeroSUS", "Número do Cartão SUS", "text", 25)}
+        <label className="block text-sm font-bold text-slate-800">Sexo (opcional)<select name="sexo" className={campo} value={dados.sexo} onChange={e => alterar("sexo", e.target.value)}><option value="">Não informado</option><option>Feminino</option><option>Masculino</option></select><span className="mt-2 block text-sm font-normal text-slate-600">Usado para disponibilizar a opção Gestante na carteira de vacinação.</span></label>
+        <div><label className="block text-sm font-bold text-slate-800">Número do Cartão SUS (opcional)<input name="numeroSUS" className={campo} inputMode="numeric" maxLength={15} value={dados.numeroSUS} onChange={e => alterar("numeroSUS", e.target.value.replace(/\D/g, "").slice(0,15))} /></label><AjudaCartaoSus /></div>
         {idade !== null && idade < 10 && input("emailResponsavel", "E-mail do responsável", "email")}
       </div>}
       {etapa === 1 && <>
         <div className="grid gap-5 sm:grid-cols-2">
-          <label className="text-sm font-bold text-slate-800">CEP de Blumenau<input name="cep" inputMode="numeric" autoComplete="postal-code" value={dados.cep} onChange={e => alterar("cep", e.target.value.replace(/\D/g, "").slice(0,8))} onBlur={cep} required pattern="[0-9]{8}" className={campo}/><button type="button" onClick={cep} disabled={consultandoCep} className="min-h-12 py-2 font-bold text-[#005F8F] underline">{consultandoCep ? "Consultando…" : "Consultar CEP"}</button></label>
+          <label className="text-sm font-bold text-slate-800">CEP de Blumenau<input name="cep" inputMode="numeric" autoComplete="postal-code" value={dados.cep} onChange={e => alterar("cep", e.target.value.replace(/\D/g, "").slice(0,8))} onBlur={cep} required pattern="[0-9]{8}" className={campo}/><button type="button" onClick={cep} disabled={consultandoCep} className="min-h-12 py-2 font-bold text-[#005F8F] underline">{consultandoCep ? "Consultando…" : "Consultar CEP"}</button>{cepConfirmado && cepConfirmado === dados.cep && <span role="status" className="block text-sm font-normal text-green-800">CEP confirmado em Blumenau.</span>}</label>
           {input("numero", "Número da residência", "text", 6)}{input("rua", "Rua ou avenida")}{input("bairro", "Bairro")}
           <label className="text-sm font-bold text-slate-800">Cidade<input value="Blumenau" readOnly className={campo}/></label>
           <label className="text-sm font-bold text-slate-800">Estado<input value="SC" readOnly className={campo}/></label>
         </div>
         <div className="rounded-xl border border-sky-200 bg-sky-50 p-5">
           <p className="font-bold text-[#005F8F]">Sua unidade de saúde</p>
-          <p role="status" className="mt-2">{consultando ? "Identificando a UBS pela rua e número…" : unidade || "Preencha o endereço para identificar sua UBS."}</p>
+          <p role="status" className="mt-2">{consultando ? "Identificando a UBS pela rua e número…" : unidade || (erroEndereco ? "Não foi possível vincular a UBS. Confira a orientação abaixo." : "Preencha o endereço para identificar sua UBS.")}</p>
           <p className="mt-3 text-xs text-slate-600">Tabela territorial municipal de 2022, consultada em novembro de 2026. Confirme com a unidade para atendimento presencial.</p>
         </div>
         {erroEndereco && <p role="alert" className="text-sm font-semibold text-red-800">{erroEndereco}</p>}

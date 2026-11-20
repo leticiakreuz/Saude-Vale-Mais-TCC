@@ -8,8 +8,11 @@ import { collection, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore"
 import Header from "../../componentes/Header";
 import Navigation from "../../componentes/Navigation";
 import Footer from "../../componentes/Footer";
+import { dataReal, hojeBrasil } from "@/lib/datas";
+import { sexoFeminino } from "@/lib/cadastro/validacao";
 import useModoSimples from "@/lib/useModoSimples";
 import VacinasSimples from "@/componentes/simples/VacinasSimples";
+import Icone from "@/componentes/publico/Icone";
 import { auth, db } from "../firebase";
 import {
   aplicada,
@@ -53,7 +56,7 @@ function colunaDaDose(dose: string): number {
 }
 
 function situacaoRegistro(registro: RegistroVacinal): { texto: string; cor: string } {
-  if (aplicada(registro)) return { texto: "Aplicada", cor: "text-green-700" };
+  if (aplicada(registro)) return { texto: registro.demonstracao ? "Aplicada · demonstração" : "Aplicada", cor: "text-green-700" };
   if (registro.dataPrevista && registro.dataPrevista < new Date().toISOString().slice(0, 10)) {
     return { texto: "Data prevista já passou", cor: "text-rose-700" };
   }
@@ -80,7 +83,9 @@ export default function VacinacaoPage() {
   const [jaFoiGestante, setJaFoiGestante] = useState(false);
   const [semanasGestacao, setSemanasGestacao] = useState("");
   const [inicioGestacao, setInicioGestacao] = useState("");
-
+  const hoje = hojeBrasil();
+  const inicioGestacaoInvalido = gestanteAtual && inicioGestacao !== ""
+    && (!dataReal(inicioGestacao) || inicioGestacao > hoje);
 
   useEffect(() => {
     let cancelarRegistros: (() => void) | undefined;
@@ -108,6 +113,7 @@ export default function VacinacaoPage() {
         const dados = documento.data() ?? {};
         const perfilCarregado: PerfilVacinal = {
           nome: String(dados.nome ?? user.displayName ?? ""),
+          sexo: String(dados.sexo ?? ""),
           dataNascimento: String(dados.dataNascimento ?? ""),
           gestanteAtual: dados.gestanteAtual === true,
           jaFoiGestante: dados.jaFoiGestante === true,
@@ -131,6 +137,7 @@ export default function VacinacaoPage() {
               const dadosVacina = item.data();
               return {
                 id: item.id,
+                demonstracao: dadosVacina.demonstracao === true,
                 vacina: String(dadosVacina.vacina ?? dadosVacina.nome ?? ""),
                 codigo: String(dadosVacina.codigo ?? ""),
                 dose: String(dadosVacina.dose ?? ""),
@@ -172,7 +179,8 @@ export default function VacinacaoPage() {
 
   const idadeMeses = useMemo(() => idadeEmMeses(perfil.dataNascimento), [perfil.dataNascimento]);
   const faseAtual = fasePorIdade(idadeMeses);
-  const podeVerGestante = perfil.gestanteAtual === true || perfil.jaFoiGestante === true;
+  const feminino = sexoFeminino(perfil.sexo);
+  const podeVerGestante = feminino && (perfil.gestanteAtual === true || perfil.jaFoiGestante === true);
   const fases = fasesAcessiveis(idadeMeses, podeVerGestante);
   const estilo = ESTILOS[fase];
   const avaliacao = useMemo(() => avaliarComprovante(perfil, registros), [perfil, registros]);
@@ -206,6 +214,9 @@ export default function VacinacaoPage() {
     }));
   }, [fase, registrosVisiveis]);
 
+  const linhasComRegistros = linhas.filter(linha => linha.registros.length > 0);
+  const linhasSemRegistros = linhas.filter(linha => linha.registros.length === 0);
+
   function trocarFase(proxima: FaseVacinal) {
     if (!fases.includes(proxima)) return;
     setFase(proxima);
@@ -216,7 +227,7 @@ export default function VacinacaoPage() {
   }
 
   async function salvarHistoricoGestacional() {
-    if (!usuario) return;
+    if (!usuario || !feminino || inicioGestacaoInvalido) return;
     if (gestanteAtual && (!inicioGestacao || !semanasGestacao || Number(semanasGestacao) < 1 || Number(semanasGestacao) > 43)) {
       setErro("Se está gestante, informe a data aproximada do início e a semana atual (1 a 43).");
       return;
@@ -286,11 +297,11 @@ export default function VacinacaoPage() {
       <Navigation />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
         {modoSimples && <button type="button" onClick={() => setVerCompleta(false)} className="sv-button sv-button-outline mb-5">← Vacinas no Modo Simples</button>}
-        <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+        <div className="mb-7 text-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#007DB8]">Saúde Vale+ · Prevenção</p>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-[#005F8F]">Minha carteira de vacinação</h1>
-            <p className="mt-2 text-sm text-[#5C6B7A]">Consulte os registros de vacinação cadastrados pela administração no Firebase. Não é possível adicionar ou alterar doses por esta página.</p>
+            <p className="mt-2 text-sm text-[#5C6B7A]">Consulte os registros da sua carteira de vacinação.</p>
           </div>
         </div>
 
@@ -300,17 +311,13 @@ export default function VacinacaoPage() {
 
         {usuario && (
           <>
-            <section className="mb-6 rounded-2xl border border-[#D1D5DB] bg-white p-4 sm:p-5">
+            <section aria-label="Selecionar carteirinha" className="mb-6 rounded-2xl border border-[#D1D5DB] bg-white p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="font-extrabold text-[#005F8F]">Tipo de carteirinha</h2>
-                  <p className="text-xs text-gray-500">A fase atual é escolhida pela data de nascimento. As fases anteriores permanecem acessíveis.</p>
-                </div>
-                <button type="button" onClick={() => setMostrarGestacao((v) => !v)} className="text-xs font-bold text-[#007DB8] underline">
+                {feminino && <button type="button" onClick={() => setMostrarGestacao((v) => !v)} className="text-xs font-bold text-[#007DB8] underline">
                   {mostrarGestacao ? "Fechar informações" : "Informações sobre gestação"}
-                </button>
+                </button>}
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className={`${feminino ? "mt-4 " : ""}flex flex-wrap gap-2`}>
                 {FASES.filter((item) => fases.includes(item.codigo)).map((item) => (
                   <button key={item.codigo} type="button" onClick={() => trocarFase(item.codigo)}
                     aria-pressed={fase === item.codigo}
@@ -322,7 +329,7 @@ export default function VacinacaoPage() {
               </div>
               {!perfil.dataNascimento && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">Data de nascimento ausente. <Link href="/perfil" className="font-bold underline">Preencha seu perfil</Link> para selecionar automaticamente a fase e avaliar o comprovante.</p>}
 
-              {mostrarGestacao && (
+              {feminino && mostrarGestacao && (
                 <div className="mt-5 border-t border-gray-200 pt-4">
                   <h3 className="font-bold text-[#005F8F]">Histórico gestacional (opcional)</h3>
                   <p className="mt-1 text-xs text-gray-500">Informação fornecida por você, usada apenas para habilitar a carteirinha da gestante.</p>
@@ -332,11 +339,27 @@ export default function VacinacaoPage() {
                   </div>
                   {gestanteAtual && (
                     <div className="mt-3 grid max-w-xl gap-3 sm:grid-cols-2">
-                      <label className="text-xs font-semibold">Data aproximada do início da gestação<input className={campo} type="date" value={inicioGestacao} onChange={(e) => setInicioGestacao(e.target.value)} /></label>
+                      <label className="text-xs font-semibold">
+                        Data aproximada do início da gestação
+                        <input
+                          className={campo}
+                          type="date"
+                          max={hoje}
+                          value={inicioGestacao}
+                          onChange={(e) => setInicioGestacao(e.target.value)}
+                          aria-invalid={inicioGestacaoInvalido}
+                          aria-describedby={inicioGestacaoInvalido ? "erro-inicio-gestacao" : undefined}
+                        />
+                        {inicioGestacaoInvalido && (
+                          <span id="erro-inicio-gestacao" role="alert" className="mt-1 block text-red-700">
+                            Informe uma data válida até hoje.
+                          </span>
+                        )}
+                      </label>
                       <label className="text-xs font-semibold">Semana gestacional atual<input className={campo} type="number" min={1} max={43} value={semanasGestacao} onChange={(e) => setSemanasGestacao(e.target.value)} /></label>
                     </div>
                   )}
-                  <button type="button" disabled={salvando} onClick={salvarHistoricoGestacional} className="mt-4 rounded-lg bg-[#005F8F] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-60">Salvar informações</button>
+                  <button type="button" disabled={salvando || inicioGestacaoInvalido} onClick={salvarHistoricoGestacional} className="mt-4 rounded-lg bg-[#005F8F] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-60">Salvar informações</button>
                 </div>
               )}
             </section>
@@ -378,7 +401,41 @@ export default function VacinacaoPage() {
               </div>
               <div className="p-4 sm:p-6">
                 {carregando ? <p className="py-12 text-center text-sm text-gray-500">Carregando registros...</p> : (
-                  <div className="overflow-x-auto rounded-xl border border-[#C0DAE0]">
+                  <>
+                  <div className="md:hidden" aria-label="Vacinas e doses registradas">
+                    {linhasComRegistros.length === 0 ? <div className="rounded-2xl bg-slate-50 px-5 py-7 text-center">
+                      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#007DB8]"><Icone nome="vacina" className="h-6 w-6" /></span>
+                      <h3 className="mt-4 text-base font-bold text-[#005F8F]">Sem doses para exibir</h3>
+                      <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">Os registros desta carteirinha aparecerão aqui quando estiverem disponíveis.</p>
+                    </div> : <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    {linhasComRegistros.map(linha => <details key={linha.codigo} className="group border-b border-slate-200 last:border-0">
+                        <summary className="flex min-h-18 cursor-pointer list-none items-center gap-3 px-4 py-4 [&::-webkit-details-marker]:hidden">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#007DB8]"><Icone nome="vacina" className="h-5 w-5" /></span>
+                          <span className="min-w-0 flex-1"><span className="block break-words text-sm font-bold text-[#005F8F]">{linha.nome}</span><span className="mt-1 block text-xs text-slate-500">{linha.registros.length} {linha.registros.length === 1 ? "registro" : "registros"}</span></span>
+                          <Icone nome="seta" className="h-4 w-4 shrink-0 rotate-90 text-[#007DB8] transition-transform group-open:-rotate-90" />
+                        </summary>
+                        <div className="space-y-3 border-t border-slate-100 px-4 py-4">
+                          {linha.registros.map(registro => {
+                            const situacao = situacaoRegistro(registro);
+                            return <dl key={registro.id} className="space-y-2 rounded-lg bg-sky-50 p-3 text-sm">
+                              <div className="flex flex-wrap items-start justify-between gap-2"><dt className="font-bold text-slate-900">{registro.dose || "Dose não informada"}</dt><dd className={`font-semibold ${situacao.cor}`}>{situacao.texto}</dd></div>
+                              <div><dt className="text-xs text-slate-500">{registro.dataAplicacao ? "Data de aplicação" : "Data prevista"}</dt><dd className="mt-1 font-semibold text-slate-900">{formatarData(registro.dataAplicacao || registro.dataPrevista)}</dd></div>
+                              {registro.unidade && <div><dt className="text-xs text-slate-500">Unidade de saúde</dt><dd className="mt-1 break-words text-slate-900">{registro.unidade}</dd></div>}
+                              {registro.lote && <div><dt className="text-xs text-slate-500">Lote</dt><dd className="mt-1 break-all text-slate-900">{registro.lote}</dd></div>}
+                            </dl>;
+                          })}
+                        </div>
+                    </details>)}
+                    </div>}
+                    {linhasSemRegistros.length > 0 && <details className="group mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-sm font-bold text-[#005F8F] [&::-webkit-details-marker]:hidden">
+                        {linhasComRegistros.length ? "Outras vacinas desta fase" : "Ver vacinas desta fase"}<Icone nome="seta" className="h-4 w-4 shrink-0 rotate-90 transition-transform group-open:-rotate-90" />
+                      </summary>
+                      <p className="px-4 pb-3 text-xs leading-5 text-slate-500">Vacinas sem registros nesta carteirinha do aplicativo.</p>
+                      <ul className="divide-y divide-slate-100 border-t border-slate-100 px-4">{linhasSemRegistros.map(linha => <li key={linha.codigo} className="py-3 text-sm text-slate-700">{linha.nome}</li>)}</ul>
+                    </details>}
+                  </div>
+                  <div className="hidden overflow-x-auto rounded-xl border border-[#C0DAE0] md:block">
                     <table className="w-full min-w-[780px] border-collapse text-left text-xs sm:text-sm">
                       <thead className="bg-[#D9F1F5] text-[#005F8F]">
                         <tr>
@@ -412,8 +469,9 @@ export default function VacinacaoPage() {
                       </tbody>
                     </table>
                   </div>
+                  </>
                 )}
-                <p className="mt-4 text-xs leading-5 text-gray-500">Traços representam ausência de registro neste sistema, não necessariamente vacina atrasada. Os registros de vacinação são administrados exclusivamente pela equipe responsável no Firebase; o paciente tem acesso somente à consulta.</p>
+                <p className="mt-4 text-xs leading-5 text-gray-500">A ausência de registro neste aplicativo não significa que a vacina esteja atrasada. Confira também sua carteira oficial.</p>
                 {fase === "Gestante" && <p className="mt-2 text-xs text-pink-700">A visualização de gestações anteriores não modifica a avaliação da fase de vida atual.</p>}
               </div>
             </section>
@@ -422,7 +480,7 @@ export default function VacinacaoPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-2xl">
                   <h2 className="text-xl font-extrabold text-[#005F8F]">Comprovante de Bom Cidadão</h2>
-                  <p className="mt-1 text-sm text-gray-600">Documento de simulação do TCC, liberado somente quando o checklist demonstrativo da faixa etária atual estiver completo.</p>
+                  <p className="mt-1 text-sm text-gray-600">PDF de demonstração do TCC, disponível após completar o checklist da faixa etária atual.</p>
                   <p className="mt-2 text-xs font-bold text-amber-800">SIMULAÇÃO ACADÊMICA — SEM VALIDADE OFICIAL</p>
                 </div>
                 <button type="button" disabled={!podeEmitir || emitindo} onClick={baixarComprovante}
@@ -430,6 +488,9 @@ export default function VacinacaoPage() {
                   {emitindo ? "Gerando PDF..." : "Baixar comprovante em PDF"}
                 </button>
               </div>
+              <p role="status" className="mt-3 text-sm text-gray-600">{carregando ? "Verificando registros…" : !contextoAtual ? "Selecione a carteirinha atual para verificar a emissão." : avaliacao.apto ? "Comprovante demonstrativo disponível para baixar." : "Emissão indisponível: há pendências no checklist demonstrativo."}</p>
+              <details className="mt-4 border-t border-slate-100 pt-3">
+                <summary className="min-h-11 cursor-pointer py-2 text-sm font-bold text-[#005F8F]">Saiba mais sobre o comprovante</summary>
               {!contextoAtual && <p className="mt-4 rounded-lg bg-[#F5F7FA] p-3 text-sm text-[#374151]">O comprovante considera a faixa etária atual, não uma carteirinha histórica. Selecione a opção marcada como “Atual” acima.</p>}
               {contextoAtual && !avaliacao.apto && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <p className="font-bold text-amber-900">Emissão indisponível</p>
@@ -440,6 +501,7 @@ export default function VacinacaoPage() {
               </div>}
               {contextoAtual && avaliacao.apto && <p className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-800">Checklist acadêmico completo. O PDF de demonstração está disponível.</p>}
               <p className="mt-4 text-xs leading-5 text-gray-500">O checklist é reduzido e não verifica contraindicações, indicações especiais, intervalos, campanhas nem autenticidade dos registros do banco de dados. Não serve para atestar situação vacinal real. Para comprovação oficial, procure os canais autorizados do SUS.</p>
+              </details>
             </section>
           </>
         )}

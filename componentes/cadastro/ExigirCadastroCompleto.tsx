@@ -16,10 +16,10 @@ export default function ExigirCadastroCompleto({children}:{children:ReactNode}) 
     const cancelar=onAuthStateChanged(auth,usuario=>{
       desligar?.();
       if(!usuario){setEstado("bloqueado");router.replace("/login");return;}
-      desligar=onSnapshot(doc(db,"usuarios",usuario.uid),p=>{
+      desligar=onSnapshot(doc(db,"usuarios",usuario.uid),{includeMetadataChanges:true},p=>{
         if(!ativo)return;
         if(cadastroCompleto(p.data()))setEstado("permitido");
-        else {setEstado("bloqueado");router.replace("/completar-cadastro");}
+        else if(!p.metadata.fromCache) {setEstado("bloqueado");router.replace("/completar-cadastro");}
       },()=>{if(ativo)setEstado("erro");});
     });
     return()=>{ativo=false;cancelar();desligar?.();};

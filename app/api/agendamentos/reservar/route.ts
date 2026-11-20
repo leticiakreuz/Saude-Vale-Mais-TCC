@@ -3,10 +3,10 @@ import { createHash } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { validarOferta } from "@/lib/profissionais/agendaRegras";
-import { auditoria } from "@/lib/profissionais/agendamentos";
-import { ErroAcesso } from "@/lib/profissionais/autorizacao";
-import { dataAgendavel } from "@/lib/profissionais/datas";
+import { validarOferta } from "@/lib/agendamentos/agendaRegras";
+import { auditoria } from "@/lib/agendamentos/auditoria";
+import { ErroAcesso } from "@/lib/autorizacao";
+import { dataAgendavel } from "@/lib/datas";
 import { cadastroCompleto } from "@/lib/cadastro/validacao";
 
 export const runtime = "nodejs";

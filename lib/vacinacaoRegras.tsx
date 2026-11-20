@@ -5,6 +5,8 @@
  * validados conforme o calendário PNI vigente e as condições individuais.
  * Referência de pesquisa: https://www.gov.br/saude/pt-br/vacinacao/calendario
  */
+import { sexoFeminino } from "@/lib/cadastro/validacao";
+
 export type FaseVacinal =
     | "Crianca"
     | "Adolescente"
@@ -16,6 +18,7 @@ export type PeriodoGestacao = "atual" | "anterior";
 
 export interface PerfilVacinal {
     nome?: string;
+    sexo?: string;
     dataNascimento?: string;
     gestanteAtual?: boolean;
     jaFoiGestante?: boolean;
@@ -25,6 +28,7 @@ export interface PerfilVacinal {
 
 export interface RegistroVacinal {
     id: string;
+    demonstracao?: boolean;
     codigo?: string;
     vacina: string;
     dose: string;
@@ -185,7 +189,7 @@ export function requisitosDemonstrativos(meses: number, perfil: PerfilVacinal): 
     }
     // Um conjunto demonstrativo de exigências gestacionais, condicionado à
     // semana informada. A avaliação médica é indispensável na vida real.
-    if (perfil.gestanteAtual) {
+    if (sexoFeminino(perfil.sexo) && perfil.gestanteAtual) {
         lista.push(regra("influenza", 1, "ano"), regra("covid", 1, "gestacao"));
         if (Number(perfil.semanasGestacao) >= 20) lista.push(regra("dtpa", 1, "gestacao"));
         if (Number(perfil.semanasGestacao) >= 28) lista.push(regra("vsr", 1, "gestacao"));
@@ -218,7 +222,7 @@ export function avaliarComprovante(perfil: PerfilVacinal, registros: RegistroVac
     const meses = idadeEmMeses(perfil.dataNascimento, hoje);
     const faseAtual = fasePorIdade(meses);
     if (meses === null) return { apto: false, motivo: "Informe a data de nascimento no perfil para avaliar os registros.", faseAtual: null, itens: [] };
-    if (perfil.gestanteAtual && (!perfil.inicioGestacao || !Number.isFinite(Number(perfil.semanasGestacao)) || Number(perfil.semanasGestacao) < 1)) {
+    if (sexoFeminino(perfil.sexo) && perfil.gestanteAtual && (!perfil.inicioGestacao || !Number.isFinite(Number(perfil.semanasGestacao)) || Number(perfil.semanasGestacao) < 1)) {
         return { apto: false, motivo: "Informe a data de início e a semana da gestação para avaliar a simulação.", faseAtual, itens: [] };
     }
     const regras = requisitosDemonstrativos(meses, perfil);

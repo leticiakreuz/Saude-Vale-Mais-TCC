@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { User } from "firebase/auth";
 import Icone, { type NomeIcone } from "@/componentes/publico/Icone";
 import TelaSimples from "./TelaSimples";
-import { dataAgendavel, formatarData, hojeBrasil } from "@/lib/profissionais/datas";
+import { dataAgendavel, formatarData, hojeBrasil } from "@/lib/datas";
 type Consulta = { id: string; servico: string; medico: string; dia: string; horario: string; status: string; unidadeReferencia?: string };
 type Tela = "inicio" | "consultas" | "historico" | "servico" | "horario" | "confirmar";
 const servicos: Record<string, string[]> = { Manhã: ["Consulta médica", "Pediatria", "Odontologia", "Consulta de retorno", "Renovação de receita"], Tarde: ["Odontologia", "Renovação de receita"] };

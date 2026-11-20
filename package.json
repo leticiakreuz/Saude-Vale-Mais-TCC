@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit",
     "build:webpack": "next build --webpack",
     "dev:webpack": "next dev --webpack",
-    "provisionar:admin": "node --env-file=.env.local scripts/provisionar-admin.mjs",
     "vincular:paciente": "node --env-file=.env.local scripts/vincular-paciente.mjs"
   },
   "dependencies": {

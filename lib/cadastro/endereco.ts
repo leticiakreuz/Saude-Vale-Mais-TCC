@@ -20,6 +20,11 @@ export async function resolverEndereco(entrada: {cep:string;rua:string;numero:st
   if (postal.rua && normalizarRua(postal.rua) !== normalizarRua(entrada.rua)) throw new ErroCadastro("A rua informada não corresponde ao CEP consultado.");
   const rua = postal.rua || entrada.rua.trim(), bairro = postal.bairro || entrada.bairro.trim();
   if (!bairro || !rua) throw new ErroCadastro("Preencha a rua e o bairro do endereço.");
-  const unidadeReferencia = unidadeDoEndereco(rua,entrada.numero);
+  let unidadeReferencia: string;
+  try { unidadeReferencia = unidadeDoEndereco(rua,entrada.numero); }
+  catch (erro) {
+    if (erro instanceof ErroCadastro && erro.status === 422) throw new ErroCadastro("O CEP é de Blumenau, mas a tabela disponível não identifica uma única UBS para esta rua e número. Confira o número da residência. Se estiver correto, confirme sua unidade de referência com a rede municipal.",422);
+    throw erro;
+  }
   return {...postal,rua,bairro,numero:entrada.numero,unidade:unidadeReferencia,unidadeReferencia,fonteTerritorial:FONTE_TERRITORIO};
 }
