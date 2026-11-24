@@ -152,6 +152,18 @@ html[data-sv-tema="escuro"] main .sv-destaque-claro {
 html[data-sv-tema="escuro"] main a.sv-destaque-claro:hover {
   background-color: #fff !important;
 }
+/* A camada sobre a fotografia precisa continuar translúcida no tema escuro. */
+html[data-sv-tema="escuro"] main.sv-autenticacao .sv-filtro-foto {
+  background-color: rgb(12 14 16 / 48%) !important;
+}
+html[data-sv-tema="escuro"] main.sv-autenticacao label,
+html[data-sv-tema="escuro"] main.sv-autenticacao [class*="text-[#123F65]"],
+html[data-sv-tema="escuro"] main.sv-autenticacao [class*="text-[#173F62]"] {
+  color: var(--sv-texto) !important;
+}
+html[data-sv-tema="escuro"] main.sv-autenticacao [class*="text-[#7186A3]"] {
+  color: var(--sv-secundario) !important;
+}
 
 html[data-sv-contraste="alto"] :is(a, button, input, textarea, select):focus-visible {
   outline: 4px solid #f59e0b !important;
@@ -179,6 +191,81 @@ html[data-sv-contraste="alto"][data-sv-tema="escuro"] main {
 }
 
 /* Modo Simples: fonte maior e áreas de toque amplas. */
+.sv-escolha-simples { transition: border-color .15s, background-color .15s; }
+.sv-horario { background: #edf9f1; border-color: #83bc96; color: #165c32; }
+.sv-horario:not(:disabled):hover { background: #d9f1e1; }
+.sv-horario[data-estado="escolhido"] { background: #18633c; border-color: #18633c; color: #fff; box-shadow: 0 0 0 2px #84c59d; }
+.sv-horario[data-estado="ocupado"] { background: #fff0f1; border-color: #d8989d; color: #9c2836; opacity: 1; cursor: not-allowed; }
+html[data-sv-tema="escuro"] main .sv-horario { background: #18372a; border-color: #4f906a; color: #abe5bf; }
+html[data-sv-tema="escuro"] main .sv-horario:not(:disabled):hover { background: #224d39; }
+html[data-sv-tema="escuro"] main .sv-horario[data-estado="escolhido"] { background: #246844; border-color: #a2dfb8; color: #fff; box-shadow: 0 0 0 2px #426c52; }
+html[data-sv-tema="escuro"] main .sv-horario[data-estado="ocupado"] { background: #42262b; border-color: #aa636d; color: #ffc0c5; }
+.sv-calendario { padding: 16px; border: 1px solid var(--sv-borda, #dce5eb); border-radius: 20px; background: var(--sv-superficie, #fff); color: var(--sv-texto, #233746); }
+.sv-calendario-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+.sv-calendario-cabecalho button { width: 48px; min-height: 48px; border: 1px solid var(--sv-borda, #dce5eb); border-radius: 14px; font-size: 28px; }
+.sv-calendario-cabecalho button:disabled { opacity: .25; }
+.sv-calendario-semana, .sv-calendario-dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.sv-calendario-semana { margin-bottom: 8px; color: var(--sv-secundario, #5d6f7d); font-size: 12px; }
+.sv-calendario-dias button { position: relative; min-width: 0; min-height: 56px; padding: 6px 0 12px; border-radius: 12px; background: var(--sv-suave, #edf7fb); color: var(--sv-destaque, #005f8f); border: 2px solid transparent; font-weight: 700; }
+.sv-calendario-dias button:disabled { background: transparent; color: var(--sv-secundario, #657480); opacity: .4; cursor: default; }
+.sv-calendario-dias button[aria-current="date"] { border-color: var(--sv-borda, #b7d5e3); }
+.sv-calendario-dias button[aria-pressed="true"] { background: #007db8; color: white; border-color: #007db8; box-shadow: 0 3px 8px rgb(0 95 143 / 20%); }
+.sv-calendario-ponto { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.sv-calendario-dias .sv-calendario-ponto { position: absolute; bottom: 6px; left: calc(50% - 2px); }
+.sv-calendario-marca { position: absolute; bottom: 0; left: 0; right: 0; font-size: 10px; line-height: 14px; }
+.sv-calendario-legenda { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--sv-secundario, #5d6f7d); font-size: 12px; }
+.sv-calendario-selecao { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--sv-borda, #dce5eb); font-size: 14px; font-weight: 600; }
+@media (max-width: 420px) { .sv-calendario { padding: 10px; } .sv-calendario-semana, .sv-calendario-dias { gap: 3px; } .sv-calendario-semana { font-size: 10px; } }
+.sv-escolha-simples:hover { outline: 2px solid #8ed3f5; outline-offset: 2px; }
+.sv-escolha-simples[aria-pressed="true"] { box-shadow: 0 3px 10px rgb(0 95 143 / 15%); }
+html[data-sv-tema="escuro"] main .sv-escolha-simples[aria-pressed="true"] {
+  background-color: #17536b !important;
+  border-color: #a2ccdc !important;
+  color: #fff !important;
+}
+.sv-med-card {
+  --med-superficie: #fff;
+  --med-bloco: #f5f7f9;
+  --med-borda: #e3e8ed;
+  --med-texto: #1f2c38;
+  --med-secundario: #586878;
+  --med-acento: #08678b;
+  overflow: hidden;
+  border: 1px solid var(--med-borda);
+  border-radius: 24px;
+  background: var(--med-superficie);
+  color: var(--med-texto);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 4%);
+  padding: 28px;
+}
+html[data-sv-tema="escuro"] .sv-med-card {
+  --med-superficie: #202224;
+  --med-bloco: #292c2f;
+  --med-borda: #3b4045;
+  --med-texto: #eceeef;
+  --med-secundario: #b3bac1;
+  --med-acento: #a2ccdc;
+}
+.sv-med-topo { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.sv-med-icone { display: grid; place-items: center; width: 60px; height: 60px; flex-shrink: 0; border-radius: 18px; background: var(--med-bloco); color: var(--med-acento); }
+.sv-med-status { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; border-radius: 30px; padding: 7px 12px; font-size: 12px; font-weight: 700; }
+.sv-med-secundario { color: var(--med-secundario); }
+.sv-med-unidade { display: flex; align-items: center; gap: 8px; margin: 20px 0; font-size: 13px; color: var(--med-secundario); }
+.sv-med-dados { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sv-med-dado { min-width: 0; padding: 18px 14px; border-radius: 16px; background: var(--med-bloco); }
+.sv-med-dado dt { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--med-secundario); }
+.sv-med-dado dd { margin-top: 12px; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.sv-med-retirada { box-shadow: inset 0 0 0 1px var(--med-borda); }
+.sv-med-retirada dd { color: var(--med-acento); }
+.sv-med-prescritor { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
+.sv-med-avatar { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border: 1px solid var(--med-borda); border-radius: 50%; color: var(--med-secundario); }
+.sv-med-rodape { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--med-borda); color: var(--med-secundario); }
+@media (max-width: 520px) {
+  .sv-med-card { padding: 20px; }
+  .sv-med-status { margin-left: 76px; }
+  .sv-med-dados { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sv-med-retirada { grid-column: 1 / -1; }
+}
 html[data-sv-essencial="sim"] {
   font-size: 112.5%;
 }

@@ -98,7 +98,7 @@ try {
 
 }
 
-return ( <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#DCEBF4] px-4 py-8 sm:px-8">
+return ( <main className="sv-autenticacao relative flex min-h-screen items-center justify-center overflow-hidden bg-[#DCEBF4] px-4 py-8 sm:px-8">
 
 {/* FUNDO DA PÁGINA */} <div className="absolute inset-0"> <Image
        src="/imagens/blumenau-fundo.png"
@@ -107,7 +107,7 @@ return ( <main className="relative flex min-h-screen items-center justify-center
        priority
        sizes="100vw"
        className="object-cover"
-     /> <div className="absolute inset-0 bg-[#EAF4FA]/40 backdrop-blur-[2px]" /> </div>
+     /> <div className="sv-filtro-foto absolute inset-0 bg-[#EAF4FA]/40 backdrop-blur-[2px]" /> </div>
 
 
   {/* VOLTAR PARA O INÍCIO */}

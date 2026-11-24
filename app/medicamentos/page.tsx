@@ -70,34 +70,29 @@ export default function MedicamentosPage() {
   const lista = medicamentos.filter(m => !["encerrado", "cancelado"].includes(m.status.toLowerCase()));
   const conteudo = <>
     {erro && <p role="alert" className="mb-5 rounded-xl bg-red-50 p-4 text-red-800">{erro}</p>}
-    {carregando ? <p role="status" className="rounded-2xl bg-white p-7">Carregando…</p> : !lista.length ? <div className="rounded-2xl border border-slate-200 bg-white p-8"><Icone nome="medicamento" className="mb-4 h-12 w-12 text-[#007DB8]" /><p className="font-semibold text-slate-600">Nenhum medicamento nesta lista.</p></div> : <div className="space-y-5">{lista.map(m => <article key={m.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-start gap-4 border-b border-slate-100 px-5 py-5 sm:px-7">
-        <span className="rounded-2xl bg-sky-50 p-3 text-[#007DB8]"><Icone nome="medicamento" className="h-9 w-9" /></span>
-        <div className="min-w-0 flex-1"><h2 className="text-xl font-extrabold text-[#005F8F]">{m.nome || "Medicamento"}</h2>{m.dosagem && <p className="mt-1 text-base text-slate-600">{m.dosagem}</p>}</div>
+    {carregando ? <p role="status" className="rounded-2xl bg-white p-7">Carregando…</p> : !lista.length ? <div className="rounded-2xl border border-slate-200 bg-white p-8"><Icone nome="medicamento" className="mb-4 h-12 w-12 text-[#007DB8]" /><p className="font-semibold text-slate-600">Nenhum medicamento nesta lista.</p></div> : <div className="space-y-5">{lista.map(m => <article key={m.id} className="sv-med-card">
+      <div className="sv-med-topo">
+        <span className="sv-med-icone"><Icone nome="medicamento" className="h-8 w-8" /></span>
+        <div className="min-w-0 flex-1"><h2 className="text-2xl font-extrabold tracking-tight">{m.nome || "Medicamento"}</h2>{m.dosagem && <p className="sv-med-secundario mt-1 text-sm">{m.dosagem}</p>}</div>
+        <span className={"sv-med-status " + disponibilidade(m).cor}><span aria-hidden="true">{disponibilidade(m).simbolo}</span>{disponibilidade(m).rotulo}</span>
       </div>
-      <div className="px-5 py-5 sm:px-7">
-        <div className={"mb-6 flex items-start gap-3 rounded-xl border p-4 " + disponibilidade(m).cor}>
-          <span aria-hidden="true" className="text-2xl font-bold">{disponibilidade(m).simbolo}</span>
-          <div><p className="font-bold">{disponibilidade(m).rotulo}</p><p className="mt-1 text-sm">{m.unidadeRetirada || "Disponibilidade informada pela unidade"}</p></div>
+      <p className="sv-med-unidade"><Icone nome="casa" className="h-4 w-4 shrink-0" />{m.unidadeRetirada || "Disponibilidade informada pela unidade"}</p>
+      <dl className="sv-med-dados">
+        <div className="sv-med-dado"><dt><Icone nome="medicamento" className="h-4 w-4" />Quantidade</dt><dd>{m.quantidade || "Não informada"}</dd></div>
+        <div className="sv-med-dado"><dt><Icone nome="historico" className="h-4 w-4" />Frequência</dt><dd>{m.frequencia || "Não informada"}</dd></div>
+        <div className="sv-med-dado sv-med-retirada"><dt><Icone nome="agenda" className="h-4 w-4" />Próxima retirada</dt><dd>{m.proximaRetirada ? formatarData(m.proximaRetirada) : "Não informada"}</dd></div>
+      </dl>
+      <div className="sv-med-prescritor">
+        <span className="sv-med-avatar"><Icone nome="pessoa" className="h-5 w-5" /></span>
+        <div className="min-w-0"><p className="sv-med-secundario text-xs">Receitado por</p>
+          {m.profissionalNome ? <p className="mt-1 break-words text-sm font-bold">{m.profissionalNome}</p> : <p className="mt-1 text-sm text-amber-800">Identificação pendente. Confirme com a equipe de saúde.</p>}
         </div>
-        <div className="flex items-start gap-3">
-          <Icone nome="pessoa" className="mt-1 h-6 w-6 shrink-0 text-[#007DB8]" />
-          <div>
-            <p className="text-xs font-semibold text-slate-500">Receitado por</p>
-            {m.profissionalNome
-              ? <p className="mt-1 font-bold text-slate-800">{m.profissionalNome}</p>
-              : <p className="mt-1 text-sm font-semibold text-amber-800">Identificação pendente. Confirme com a equipe de saúde.</p>}
-          </div>
-        </div>
-        <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
-          <div><dt className="text-sm text-slate-500">Quantidade</dt><dd className="mt-1 font-bold">{m.quantidade || "Não informada"}</dd></div>
-          <div><dt className="text-sm text-slate-500">Frequência</dt><dd className="mt-1 font-bold">{m.frequencia || "Não informada"}</dd></div>
-          <div><dt className="text-sm text-slate-500">Próxima retirada</dt><dd className="mt-1 font-bold text-[#005F8F]">{m.proximaRetirada ? formatarData(m.proximaRetirada) : "Não informada"}</dd></div>
-        </dl>
-        {m.dataReceita && <p className="mt-5 text-sm text-slate-500">Receita de {formatarData(m.dataReceita)}</p>}
-        {m.observacao && <p className="mt-4 border-l-2 border-[#8ED3F5] pl-3 text-sm leading-6 text-slate-600">{m.observacao}</p>}
-        {m.demonstrativo && <p className="mt-4 text-xs font-bold uppercase tracking-wide text-[#005F8F]">Registro demonstrativo · Sem validade de receita médica</p>}
+        {m.dataReceita && <p className="sv-med-secundario ml-auto text-right text-xs">Receita de<br /><span className="mt-1 inline-block font-semibold">{formatarData(m.dataReceita)}</span></p>}
       </div>
+      {(m.observacao || m.demonstrativo) && <div className="sv-med-rodape">
+        {m.observacao && <p className="flex items-start gap-2 text-sm"><Icone nome="receita" className="mt-0.5 h-4 w-4 shrink-0" />{m.observacao}</p>}
+        {m.demonstrativo && <p className="sv-med-secundario mt-3 text-xs">Registro demonstrativo · Sem validade de receita médica</p>}
+      </div>}
     </article>)}</div>}
   </>;
   if (simples) return <TelaSimples titulo="Remédios" icone="medicamento">{conteudo}</TelaSimples>;
