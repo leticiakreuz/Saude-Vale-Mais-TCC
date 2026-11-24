@@ -100,7 +100,7 @@ export default function EntrarFormulario() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#DCEBF4] px-4 py-8 sm:px-8">
+    <main className="sv-autenticacao relative flex min-h-screen items-center justify-center overflow-hidden bg-[#DCEBF4] px-4 py-8 sm:px-8">
       {/* FUNDO */}
       <div className="absolute inset-0">
         <Image
@@ -111,7 +111,7 @@ export default function EntrarFormulario() {
           sizes="100vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-[#EAF4FA]/40 backdrop-blur-[2px]" />
+        <div className="sv-filtro-foto absolute inset-0 bg-[#EAF4FA]/40 backdrop-blur-[2px]" />
       </div>
 
       {/* VOLTAR PARA O INÍCIO */}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { User } from "firebase/auth";
 import Icone, { type NomeIcone } from "@/componentes/publico/Icone";
 import TelaSimples from "./TelaSimples";
+import CalendarioAgendamento from "./CalendarioAgendamento";
 import { dataAgendavel, formatarData, hojeBrasil } from "@/lib/datas";
 type Consulta = { id: string; servico: string; medico: string; dia: string; horario: string; status: string; unidadeReferencia?: string };
 type Tela = "inicio" | "consultas" | "historico" | "servico" | "horario" | "confirmar";
@@ -84,10 +85,22 @@ export default function AgendamentosSimples({ usuario, consultas, carregando, pe
         <button className="sv-button mt-7 w-full" onClick={() => setTela("horario")}>Continuar →</button>
       </>}
       {tela === "horario" && <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
-        <label className="grid gap-3 font-bold text-[#005F8F]"><span className="flex items-center gap-3"><Icone nome="pessoa" />Profissional</span><select value={medico} onChange={e => setMedico(e.target.value)} className="min-h-14 rounded-xl border border-slate-300 bg-white px-4 py-3"><option value="">Escolher</option>{medicos.map(m => <option key={m}>{m}</option>)}</select></label>
-        <label className="mt-6 grid gap-3 font-bold text-[#005F8F]"><span className="flex items-center gap-3"><Icone nome="agenda" />Dia</span><select value={dia} onChange={e => setDia(e.target.value)} className="min-h-14 rounded-xl border border-slate-300 bg-white px-4 py-3"><option value="">Escolher</option>{diasDisponiveis().map(d => <option key={d} value={d}>{formatarData(d)}</option>)}</select></label>
+        <fieldset>
+          <legend className="mb-4 flex items-center gap-3 font-bold text-[#005F8F]"><Icone nome="pessoa" />Profissional</legend>
+          <div className="grid gap-3 sm:grid-cols-2">{medicos.map(m => <button type="button" key={m} aria-pressed={medico === m} onClick={() => { setMedico(m); setHora(""); setDisponibilidadePronta(false); }} className={"sv-escolha-simples flex min-h-20 items-center justify-between gap-3 rounded-xl border-2 p-4 text-left font-bold " + (medico === m ? "border-[#007DB8] bg-[#007DB8] text-white" : "border-slate-200 bg-white text-[#005F8F]")}>
+            <span>{m}</span><span aria-hidden="true" className="text-xl">{medico === m ? "✓" : "○"}</span>
+          </button>)}</div>
+        </fieldset>
+        <fieldset className="mt-8">
+          <legend className="mb-4 flex items-center gap-3 font-bold text-[#005F8F]"><Icone nome="agenda" />Dia</legend>
+          <CalendarioAgendamento dias={diasDisponiveis()} valor={dia} onChange={d => { setDia(d); setHora(""); setDisponibilidadePronta(false); }} />
+        </fieldset>
         {consultando && <p role="status" className="mt-6">Buscando horários…</p>}
-        {disponibilidadePronta && <fieldset className="mt-6"><legend className="mb-4 font-bold text-[#005F8F]">Horário</legend><div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{horarios[periodo].map(h => <button type="button" key={h} aria-pressed={hora === h} disabled={indisponiveis.includes(h)} onClick={() => setHora(h)} className={"min-h-16 rounded-xl border p-3 text-lg font-bold disabled:opacity-40 " + (hora === h ? "border-[#007DB8] bg-[#007DB8] text-white" : "border-slate-300 text-[#005F8F]")}>{h}<span className="block text-xs">{indisponiveis.includes(h) ? "Indisponível" : hora === h ? "✓ Escolhido" : "Livre"}</span></button>)}</div></fieldset>}
+        {disponibilidadePronta && <fieldset className="mt-6"><legend className="mb-4 font-bold text-[#005F8F]">Horário</legend><div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{horarios[periodo].map(h => {
+          const ocupado = indisponiveis.includes(h);
+          const escolhido = !ocupado && hora === h;
+          return <button type="button" key={h} aria-pressed={escolhido} disabled={ocupado} data-estado={ocupado ? "ocupado" : escolhido ? "escolhido" : "livre"} onClick={() => setHora(h)} className="sv-horario min-h-16 rounded-xl border p-3 text-lg font-bold">{h}<span className="block text-xs">{ocupado ? "Ocupado" : escolhido ? "✓ Escolhido" : "Livre"}</span></button>;
+        })}</div></fieldset>}
         <button disabled={!hora || !disponibilidadePronta || consultando} className="sv-button mt-7 w-full" onClick={() => setTela("confirmar")}>Continuar →</button>
       </div>}
       {tela === "confirmar" && <div className="rounded-2xl border border-slate-200 bg-white p-6"><h2 className="text-2xl font-bold text-[#005F8F]">Confirmar consulta?</h2><p className="mt-6 text-xl font-bold">{servico}</p><p className="mt-5 flex items-center gap-3"><Icone nome="agenda" />{formatarData(dia)} · {hora}</p><p className="mt-4 flex items-center gap-3"><Icone nome="pessoa" />{medico}</p><p className="mt-4">{unidade}</p><button disabled={enviando || !hora} className="sv-button mt-7 w-full" onClick={reservar}>{enviando ? "Agendando…" : "✓ Confirmar"}</button></div>}
